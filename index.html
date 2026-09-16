@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сятковский Матвей Викторович — Unity / C# разработчик</title>
+<meta name="description" content="Резюме: разработчик игр на Unity и C#. Студент 4 курса ИТ-факультета, специальность «Информационные системы и технологии в игровой индустрии».">
+<style>
+  :root{
+    --paper:#f4f1ea;
+    --ink:#17181a;
+    --ink-2:#5b584f;
+    --rule:#d9d3c6;
+    --rule-2:#bfb7a6;
+    --accent:#a5331a;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono:"Cascadia Mono","JetBrains Mono",Consolas,"SFMono-Regular",ui-monospace,monospace;
+    --canvas:clamp(1000px,94vw,1250px);
+    --gutter:clamp(20px,4.5vw,56px);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--serif);font-size:16px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  }
+  .sheet{max-width:var(--canvas);margin:0 auto;padding:clamp(28px,4.5vw,66px) var(--gutter) clamp(40px,6vw,76px)}
+
+  /* ---------- шапка ---------- */
+  .masthead{border-bottom:1px solid var(--rule-2);padding-bottom:22px}
+  .kicker{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ink-2);display:flex;align-items:center;gap:11px;margin:0 0 16px
+  }
+  .kicker::before{content:"";width:24px;height:2px;background:var(--accent);flex:none}
+  h1{
+    font-size:clamp(31px,5vw,52px);line-height:1.07;letter-spacing:-.022em;font-weight:600;
+    margin:0 0 12px;max-width:22ch
+  }
+  .role{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2)}
+  .contact{
+    display:flex;flex-wrap:wrap;gap:9px 26px;margin-top:20px;
+    font-family:var(--mono);font-size:12px;letter-spacing:.01em
+  }
+  .contact span{display:inline-flex;align-items:baseline;gap:7px}
+  .contact .k{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2)}
+  .contact a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--rule-2);padding-bottom:1px}
+  .contact a:hover,.contact a:focus-visible{border-bottom-color:var(--accent);outline:none}
+  .contact .ph{color:var(--ink-2)}
+
+  /* ---------- двухколоночное тело ---------- */
+  .body-grid{
+    display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);
+    gap:clamp(26px,4vw,60px);padding-top:34px
+  }
+  @media (max-width:880px){.body-grid{grid-template-columns:1fr;gap:4px}}
+
+  /* левая колонка */
+  .rail .rblock{padding:17px 0 19px;border-top:1px solid var(--rule)}
+  .rail .rblock:first-child{border-top:0;padding-top:0}
+  .rlabel{
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ink-2);margin:0 0 10px
+  }
+  .rail p{margin:0;font-size:14.5px;line-height:1.5}
+  .skills{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .skills li{display:grid;grid-template-columns:72px 1fr;gap:11px;align-items:baseline}
+  .skills .sk{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-2);padding-top:2px
+  }
+  .skills .sv{font-size:14.5px;line-height:1.45}
+
+  /* правая колонка */
+  .main section{padding-bottom:30px}
+  .main section:last-child{padding-bottom:0}
+  .sechead{
+    display:flex;align-items:baseline;gap:14px;margin:0 0 15px;
+    border-top:1px solid var(--rule-2);padding-top:12px
+  }
+  .sechead .t{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+  .sechead .n{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--accent)}
+  .main p{margin:0;max-width:72ch}
+  .main p + p{margin-top:9px}
+
+  /* проекты */
+  .project{padding:15px 0 17px;border-top:1px solid var(--rule)}
+  .project:first-of-type{border-top:0;padding-top:0}
+  .ptitle{
+    display:flex;gap:11px;align-items:baseline;margin:0 0 5px;
+    font-size:18.5px;font-weight:600;letter-spacing:-.006em;line-height:1.25
+  }
+  .ptitle .idx{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--accent);flex:none}
+  .pmeta{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--ink-2);margin:0 0 10px
+  }
+  .pdesc{margin:0 0 10px;max-width:74ch}
+  .plist{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-width:80ch}
+  .plist li{position:relative;padding-left:17px;font-size:15px;line-height:1.5}
+  .plist li::before{content:"";position:absolute;left:1px;top:.66em;width:6px;height:1px;background:var(--rule-2)}
+
+  /* нижняя полоса */
+  .strip{
+    margin-top:8px;border-top:1px solid var(--rule-2);padding-top:16px;
+    display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);
+    gap:clamp(26px,4vw,60px)
+  }
+  @media (max-width:880px){.strip{grid-template-columns:1fr;gap:6px}}
+  .strip .rlabel{margin:0}
+  .edu{font-size:15px;line-height:1.55;max-width:80ch}
+  .edu b{font-weight:600}
+  .edu .muted{color:var(--ink-2)}
+
+  @media print{
+    :root{--paper:#f7f5f0}
+    body{font-size:10.5pt}
+    .sheet{max-width:none;padding:0}
+    .main section{padding-bottom:18px}
+    a{color:var(--ink)}
+    .contact a{border-bottom:1px solid var(--rule-2)}
+    @page{margin:13mm}
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <header class="masthead">
+    <p class="kicker">Сятковский Матвей Викторович · 4 курс</p>
+    <h1>Разработчик игр на Unity и C#</h1>
+    <p class="role">Учебная специальность — информационные системы и технологии в игровой индустрии</p>
+    <div class="contact">
+      <span><span class="k">Телефон</span><span class="ph">+375 (__) ___-__-__</span></span>
+      <span><span class="k">E-mail</span><span class="ph">______@____</span></span>
+      <span><span class="k">GitHub</span><a href="https://github.com/matiksiatik">github.com/matiksiatik</a></span>
+    </div>
+  </header>
+
+  <div class="body-grid">
+
+    <aside class="rail">
+      <div class="rblock">
+        <p class="rlabel">Навыки</p>
+        <ul class="skills">
+          <li><span class="sk">Языки</span><span class="sv">C#, JavaScript, HTML/CSS</span></li>
+          <li><span class="sk">Unity</span><span class="sv">физика (Rigidbody), Mirror, Input System, Cinemachine, URP, UGUI и TextMeshPro</span></li>
+          <li><span class="sk">Сети</span><span class="sv">Mirror: SyncVar, [Command], [ClientRpc], NetworkBehaviour</span></li>
+          <li><span class="sk">3D</span><span class="sv">Blender: моделирование, UV-развёртка, PBR-материалы, свет, LOD, экспорт в Unity</span></li>
+          <li><span class="sk">Web</span><span class="sv">Three.js, WebGL, Canvas 2D</span></li>
+          <li><span class="sk">Tools</span><span class="sv">Unity Version Control (Plastic SCM), Visual Studio, VS Code</span></li>
+        </ul>
+      </div>
+      <div class="rblock">
+        <p class="rlabel">Языки</p>
+        <p>Русский — родной. Английский — A2 (чтение технической документации со словарём).</p>
+      </div>
+    </aside>
+
+    <div class="main">
+
+      <section>
+        <div class="sechead"><span class="n">01</span><span class="t">Цель</span></div>
+        <p>Позиция Unity / C# разработчика (Junior) в игровой студии.</p>
+      </section>
+
+      <section>
+        <div class="sechead"><span class="n">02</span><span class="t">Профиль</span></div>
+        <p>Студент 4 курса ИТ-факультета. Разрабатываю игры на Unity и C#: игровая логика, физика, сетевое взаимодействие и интерфейсы. Дополнительно занимаюсь 3D-моделированием в Blender и браузерной разработкой. Проекты вёл самостоятельно — от постановки задачи и архитектуры до сборки и отладки.</p>
+      </section>
+
+      <section>
+        <div class="sechead"><span class="n">03</span><span class="t">Проекты</span></div>
+
+        <article class="project">
+          <h3 class="ptitle"><span class="idx">01</span><span>Gonka_2 — сетевая гоночная игра</span></h3>
+          <p class="pmeta">Unity 6 · C# · Mirror · URP · Cinemachine — личный проект</p>
+          <p class="pdesc">Многопользовательская гонка от третьего лица: игроки подключаются к одному заезду, проезжают круги и соревнуются по времени.</p>
+          <ul class="plist">
+            <li>Модель автомобиля на Rigidbody: сила тяги, максимальная скорость и сопротивление выводятся из массы и мощности двигателя (логарифмическая зависимость); боковое демпфирование для управляемости.</li>
+            <li>Механика дрифта: накопление заряда в заносе и расход на ускорение.</li>
+            <li>Сетевая синхронизация на Mirror: NetworkBehaviour, SyncVar с хуками, серверные команды и клиентские вызовы.</li>
+            <li>Гоночная логика: триггер финиша, подсчёт времени круга и лучшего результата, отсчёт перед стартом после подключения игроков.</li>
+            <li>Интерфейс: скорость, номер круга, время и лучший круг, шкала дрифта; камера от третьего лица и анимация вращения колёс.</li>
+            <li>Две сцены (меню и трасса) и собранный Windows-билд.</li>
+          </ul>
+        </article>
+
+        <article class="project">
+          <h3 class="ptitle"><span class="idx">02</span><span>«Сортировка жидкости» — браузерная головоломка</span></h3>
+          <p class="pmeta">HTML5 · JavaScript · CSS — личный проект</p>
+          <p class="pdesc">Головоломка на переливание: нужно разлить жидкости по бутылкам так, чтобы в каждой остался один цвет.</p>
+          <ul class="plist">
+            <li>Логика ходов: перенос верхнего слоя между бутылками, проверка допустимости хода, определение победы и наличия доступных ходов.</li>
+            <li>Процедурная генерация уровней с проверкой решаемости; «замороженные» бутылки и скрытые слои как усложнение.</li>
+            <li>Таймер на уровень с предупреждениями, пошаговое обучение и подсказки.</li>
+            <li>Меню, настройки музыки и звука, переключение языка интерфейса.</li>
+            <li>Анимация перелива жидкости, частицы, закрытие крышки, фон с параллаксом (звёзды и планеты).</li>
+          </ul>
+        </article>
+
+        <article class="project">
+          <h3 class="ptitle"><span class="idx">03</span><span>Гараж — 3D-сцена, моделирование и сборка</span></h3>
+          <p class="pmeta">Blender · PBR · Unity — личный проект</p>
+          <p class="pdesc">Трёхмерная сцена гаража: моделирование объектов, подготовка материалов и сборка интерактивной сцены в Unity.</p>
+          <ul class="plist">
+            <li>Моделирование здания гаража и объектов: автомобиль, подъёмник, компрессор, контейнер.</li>
+            <li>Материалы PBR: BaseColor, Normal, Roughness, Ambient Occlusion; UV-развёртка, освещение и скайбокс.</li>
+            <li>Оптимизация геометрии — уровни детализации (LOD).</li>
+            <li>Экспорт моделей и текстур в Unity; сцена с перемещением от первого лица, звуковыми и интерактивными триггерами.</li>
+          </ul>
+        </article>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="strip">
+    <p class="rlabel">Образование</p>
+    <p class="edu">
+      <b>4 курс</b> · Факультет информационных технологий<br>
+      специальность «Информационные системы и технологии в игровой индустрии»<br>
+      <span class="muted">[Название университета] · [город] · [годы обучения]</span>
+    </p>
+  </div>
+
+</main>
+</body>
+</html>
