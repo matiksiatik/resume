@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BottleSort</title>
+    <!-- Общие стили и стили главного меню -->
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-color: #080320;
+        }
+        #app {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Фоновый контейнер */
+        #bg-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            filter: blur(2px);
+        }
+        #space-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        @keyframes floatPlanet {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        #planet-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain;
+            object-position: center 50%;
+            transform: scale(0.7);
+            animation: floatPlanet 6s ease-in-out infinite;
+        }
+
+        /* Анимации звёзд */
+        @keyframes floatStar {
+            0% { transform: translateY(0px) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-40px) scale(1.4); opacity: 0.9; }
+            100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+        }
+        @keyframes shootingStar {
+            0% { transform: translate(0, 0) rotate(-40deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(-350px, 350px) rotate(-40deg); opacity: 0; }
+        }
+        .bg-star { position: absolute; border-radius: 50%; background: white; animation: floatStar linear infinite; }
+        .shooting-star {
+            position: absolute; width: 3px; height: 3px;
+            background: white; border-radius: 50%;
+            box-shadow: 0 0 10px 5px white;
+            animation: shootingStar linear infinite;
+        }
+        .shooting-star::after {
+            content: ''; position: absolute; top: 50%; right: 100%;
+            width: 80px; height: 2px;
+            background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+            transform: translateY(-50%); border-radius: 2px;
+        }
+        .star-cluster {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.6);
+            box-shadow: 10px 20px 0 0 white, 30px 40px 0 0 rgba(255,255,255,0.8), -10px 50px 0 0 white, 20px 70px 0 0 rgba(255,255,255,0.5);
+            filter: blur(2px); 
+        }
+
+        /* Общие стили меню */
+        .menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.3s;
+            background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+        }
+        .menu-hidden { opacity: 0; pointer-events: none; }
+
+        .menu-title-img {
+            width: 80%; max-width: 350px; height: auto;
+            animation: floatTitle 3s ease-in-out infinite;
+            margin-bottom: 20px; pointer-events: none;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+        }
+        @keyframes floatTitle {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .menu-button {
+            position: relative; cursor: pointer; opacity: 0.9;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+            padding: 2px; background: black; border-radius: 16px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            border: none; width: 80%; max-width: 300px; margin: 6px 0; text-align: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .menu-button:hover { opacity: 1; box-shadow: 0 0 30px rgba(185, 49, 252, 0.8); }
+        .menu-button:active { transform: scale(0.95); }
+        .menu-button-inner {
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+            padding: 14px 20px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; text-align: center; font-weight: 800; font-size: 1.2rem;
+            width: 100%; height: 100%; box-sizing: border-box; letter-spacing: 1px;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+        }
+        .menu-button-inner svg { width: 22px; height: 22px; stroke: white; flex-shrink: 0; }
+
+        .back-button {
+            position: absolute; top: 20px; left: 20px;
+            background: black; border: none; border-radius: 50%; padding: 2px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            width: 52px; height: 52px; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .back-button:active { transform: scale(0.90); }
+        .back-button:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .back-button span {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            background: #B931FC; border-radius: 50%;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-size: 1.6rem; font-weight: bold;
+        }
+
+        /* Переключатели (toggle) */
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .3s; border-radius: 34px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px;
+            background-color: white; transition: .3s; border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        input:checked + .slider { background: linear-gradient(135deg, #8122b0, #dc98fd); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* Стили для главного меню (дополнительно) */
+        #main-menu .menu-button:last-child { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Фоновый контейнер -->
+        <div id="bg-container">
+            <img id="space-layer" src="spaceback.png" alt="Космос">
+            <img id="planet-layer" src="planetback.png" alt="Планеты">
+        </div>
+
+        <!-- Аудио -->
+        <audio id="bg-music" src="menu.mp3" loop preload="auto"></audio>
+        <audio id="btn-sound" src="button.mp3" preload="auto"></audio>
+
+        <!-- Главное меню -->
+        <div id="main-menu" class="menu-overlay">
+            <img src="name.png" class="menu-title-img" alt="BottleSort">
+            
+            <button class="menu-button" onclick="openLevelSelect()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M8 13V9m-2 2h4m5-2v.001M18 12v.001m4-.334v5.243a3.09 3.09 0 0 1-5.854 1.382L16 18a3.618 3.618 0 0 0-3.236-2h-1.528c-1.37 0-2.623.774-3.236 2l-.146.292A3.09 3.09 0 0 1 2 16.91v-5.243A6.667 6.667 0 0 1 8.667 5h6.666A6.667 6.667 0 0 1 22 11.667Z"></path>
+                    </svg>
+                    <span data-lang="menu_play">Играть</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="openSettings()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                    <span data-lang="menu_settings">Настройки</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="exitGame()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span data-lang="menu_exit">Выход</span>
+                </span>
+            </button>
+        </div>
+
+        <!-- Контейнеры для подгружаемых разделов -->
+        <div id="level-select" class="menu-overlay menu-hidden"></div>
+        <div id="settings-menu" class="menu-overlay menu-hidden"></div>
+        <div id="game-container" style="display:none; flex-direction:column; width:100%; height:100%; z-index:11; position:absolute; top:0; left:0; background:rgba(8,3,32,0.35); backdrop-filter:blur(4px);"></div>
+        <div id="tutorial-ui" style="display:none;"></div>
+    </div>
+
+    <!-- Подключаем скрипты -->
+    <script src="scriptsLevels.js"></script>
+    <script>
+        // ==========================================
+        //   ПЕРЕВОДЫ И НАСТРОЙКИ (общие)
+        // ==========================================
+        const TRANSLATIONS = {
+            'en': {
+                'menu_play': 'Play', 'menu_settings': 'Settings', 'menu_exit': 'Exit',
+                'settings_music': 'Music', 'settings_sound': 'Sound', 'settings_lang': 'Language',
+                'settings_note': 'Place menu.mp3 and button.mp3 files in the game folder.'
+            },
+            'ru': {
+                'menu_play': 'Играть', 'menu_settings': 'Настройки', 'menu_exit': 'Выход',
+                'settings_music': 'Музыка', 'settings_sound': 'Звук', 'settings_lang': 'Язык',
+                'settings_note': 'Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.'
+            }
+        };
+
+        let currentLang = 'ru', soundEnabled = true, musicEnabled = true, maxUnlockedLevel = 33;
+
+        function loadSettings() {
+            try {
+                const s = JSON.parse(localStorage.getItem('waterSortSettings'));
+                if(s) {
+                    currentLang = s.lang || 'ru'; soundEnabled = s.sound !== undefined ? s.sound : true;
+                    musicEnabled = s.music !== undefined ? s.music : true; maxUnlockedLevel = s.maxLevel || 33;
+                }
+            } catch(e){}
+            maxUnlockedLevel = 33;
+            document.getElementById('sound-toggle').checked = soundEnabled;
+            document.getElementById('music-toggle').checked = musicEnabled;
+            document.getElementById('lang-toggle').checked = currentLang === 'en';
+        }
+
+        function saveSettings() {
+            localStorage.setItem('waterSortSettings', JSON.stringify({
+                lang: currentLang, sound: soundEnabled, music: musicEnabled, maxLevel: maxUnlockedLevel
+            }));
+        }
+
+        function applyLanguage() {
+            const langData = TRANSLATIONS[currentLang];
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if(langData[key]) el.innerText = langData[key];
+            });
+        }
+
+        // ==========================================
+        //   МУЗЫКА И ЗВУКИ
+        // ==========================================
+        let audioContext = null;
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') audioContext.resume();
+        }
+
+        const bgMusic = document.getElementById('bg-music');
+        function updateMusic() {
+            if (musicEnabled) {
+                initAudio();
+                bgMusic.play().catch(e => {});
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function playButtonSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const btnSnd = document.getElementById('btn-sound');
+                btnSnd.currentTime = 0;
+                btnSnd.play().catch(e => {});
+            } catch (e) {}
+        }
+
+        function playPourSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.35);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.35);
+            } catch (e) {}
+        }
+
+        function playCapSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.25);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.25);
+            } catch (e) {}
+        }
+
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.menu-button') || e.target.closest('.back-button') || 
+               e.target.closest('.level-btn') || e.target.closest('.btn-control') ||
+               e.target.closest('#modal-next-btn') || e.target.closest('#timeout-retry-btn') ||
+               e.target.closest('#timeout-menu-btn') || e.target.closest('#no-moves-retry-btn') || 
+               e.target.closest('#no-moves-menu-btn') || e.target.closest('#timer-warning-start-btn') ||
+               e.target.closest('#hidden-warning-start-btn') || e.target.closest('#frozen-warning-start-btn')) {
+                playButtonSound();
+            }
+        });
+
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        // ==========================================
+        //   ФОНОВЫЕ ОБЪЕКТЫ (ЗВЕЗДЫ)
+        // ==========================================
+        function createStar() {
+            const star = document.createElement('div');
+            star.className = 'bg-star';
+            const size = Math.random() * 3 + 1.5;
+            star.style.width = size + 'px'; star.style.height = size + 'px';
+            star.style.background = `radial-gradient(circle, #fff, rgba(255,255,255,0.2))`;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            star.style.animationDelay = (Math.random() * 10) + 's';
+            return star;
+        }
+        function createShootingStar() {
+            const star = document.createElement('div');
+            star.className = 'shooting-star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 2 + 3) + 's';
+            star.style.animationDelay = (Math.random() * 15) + 's';
+            return star;
+        }
+        function generateBackground() {
+            const bgContainer = document.getElementById('bg-container');
+            for(let i=0; i<50; i++) { bgContainer.appendChild(createStar()); }
+            for(let i=0; i<8; i++) { bgContainer.appendChild(createShootingStar()); }
+        }
+
+        // ==========================================
+        //   НАВИГАЦИЯ МЕЖДУ МЕНЮ
+        // ==========================================
+        function showMenu(menuId) {
+            document.querySelectorAll('.menu-overlay').forEach(m => m.classList.add('menu-hidden'));
+            document.getElementById(menuId).classList.remove('menu-hidden');
+            document.getElementById('game-container').style.display = 'none';
+            // Останавливаем таймеры и модальные окна (если они есть)
+            if (typeof stopTimer === 'function') stopTimer();
+            // Скрыть модальные окна игры (они в game-container)
+            const modalIds = ['win-modal', 'timeout-modal', 'no-moves-modal', 'timer-warning-modal', 'hidden-warning-modal', 'frozen-warning-modal'];
+            modalIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            // Остановить демо
+            if (typeof stopFrozenDemo === 'function') stopFrozenDemo();
+            if (typeof stopDemoDropLoop === 'function') stopDemoDropLoop();
+            if (typeof stopHiddenDemo === 'function') stopHiddenDemo();
+        }
+
+        function openMainMenu() {
+            showMenu('main-menu');
+            applyLanguage();
+            if(musicEnabled) updateMusic();
+            const tutUI = document.getElementById('tutorial-ui');
+            const label = document.getElementById('tutorial-label');
+            if (tutUI) tutUI.style.display = 'none';
+            if (label) label.style.opacity = '0';
+            // Сброс состояния обучения
+            if (typeof isTutorial !== 'undefined') isTutorial = false;
+            if (typeof tutorialResolve !== 'undefined') tutorialResolve = null;
+            if (typeof stopDemoDropLoop === 'function') stopDemoDropLoop();
+            if (typeof stopTimer === 'function') stopTimer();
+        }
+
+        function openLevelSelect() {
+            showMenu('level-select');
+            applyLanguage();
+            // Загружаем сетку уровней (функция определена в scriptsLevels.js)
+            if (typeof renderLevelGrid === 'function') renderLevelGrid();
+        }
+
+        function openSettings() {
+            showMenu('settings-menu');
+            applyLanguage();
+        }
+
+        function exitGame() {
+            if(confirm("Закрыть игру?")) { 
+                window.close(); 
+                document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; color:white; background:#080320; font-size:2rem;">Игра закрыта</div>'; 
+            }
+        }
+
+        // ==========================================
+        //   ЗАГРУЗКА ФРАГМЕНТОВ HTML
+        // ==========================================
+        async function loadFragment(url, containerId) {
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                document.getElementById(containerId).innerHTML = html;
+            } catch (e) {
+                console.error('Ошибка загрузки фрагмента:', url, e);
+            }
+        }
+
+        async function loadAllFragments() {
+            await loadFragment('level.html', 'level-select');
+            await loadFragment('Settings.html', 'settings-menu');
+            await loadFragment('levels.html', 'game-container');
+            // tutorial-ui находится внутри game-container, но он отдельно, но в levels.html он есть.
+            // После загрузки инициализируем
+            initAfterLoad();
+        }
+
+        function initAfterLoad() {
+            // Загружаем настройки
+            loadSettings();
+            applyLanguage();
+            // Генерируем звезды
+            generateBackground();
+            // Открываем главное меню
+            openMainMenu();
+            // Настраиваем переключатели в settings
+            document.getElementById('music-toggle').addEventListener('change', function(e) {
+                musicEnabled = e.target.checked; saveSettings();
+                if(musicEnabled) updateMusic(); else { bgMusic.pause(); bgMusic.currentTime = 0; }
+            });
+            document.getElementById('sound-toggle').addEventListener('change', function(e) {
+                soundEnabled = e.target.checked; saveSettings();
+            });
+            document.getElementById('lang-toggle').addEventListener('change', function(e) {
+                currentLang = e.target.checked ? 'en' : 'ru'; saveSettings(); applyLanguage();
+                // Обновить меню уровней и настройки (если открыты)
+                if (!document.getElementById('level-select').classList.contains('menu-hidden')) openLevelSelect();
+                if (!document.getElementById('settings-menu').classList.contains('menu-hidden')) openSettings();
+            });
+            // Если игра уже запущена, можно восстановить уровень? Нет, при старте меню.
+        }
+
+        // Старт загрузки
+        document.addEventListener('DOMContentLoaded', loadAllFragments);
+    </script>
+</body>
+</html>

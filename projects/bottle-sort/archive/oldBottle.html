@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сортировка Жидкости</title>
+    <style>
+        /* ===== БАЗОВЫЕ СТИЛИ ===== */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-color: #080320;
+        }
+        #app {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ===== ФОНОВЫЙ КОНТЕЙНЕР ===== */
+        #bg-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            filter: blur(2px);
+        }
+        #space-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        @keyframes floatPlanet {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        #planet-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain;
+            object-position: center 50%;
+            transform: scale(0.7);
+            animation: floatPlanet 6s ease-in-out infinite;
+        }
+
+        /* ===== АНИМАЦИИ ЗВЁЗД ===== */
+        @keyframes floatStar {
+            0% { transform: translateY(0px) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-40px) scale(1.4); opacity: 0.9; }
+            100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+        }
+        @keyframes shootingStar {
+            0% { transform: translate(0, 0) rotate(-40deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(-350px, 350px) rotate(-40deg); opacity: 0; }
+        }
+        .bg-star { position: absolute; border-radius: 50%; background: white; animation: floatStar linear infinite; }
+        .shooting-star {
+            position: absolute; width: 3px; height: 3px;
+            background: white; border-radius: 50%;
+            box-shadow: 0 0 10px 5px white;
+            animation: shootingStar linear infinite;
+        }
+        .shooting-star::after {
+            content: ''; position: absolute; top: 50%; right: 100%;
+            width: 80px; height: 2px;
+            background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+            transform: translateY(-50%); border-radius: 2px;
+        }
+        .star-cluster {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.6);
+            box-shadow: 10px 20px 0 0 white, 30px 40px 0 0 rgba(255,255,255,0.8), -10px 50px 0 0 white, 20px 70px 0 0 rgba(255,255,255,0.5);
+            filter: blur(2px); 
+        }
+
+        /* ===== МЕНЮ И НАСТРОЙКИ ===== */
+        .menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.3s;
+            background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+        }
+        .menu-hidden { opacity: 0; pointer-events: none; }
+
+        .menu-title-img {
+            width: 80%; max-width: 350px; height: auto;
+            animation: floatTitle 3s ease-in-out infinite;
+            margin-bottom: 20px; pointer-events: none;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+        }
+        @keyframes floatTitle {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .menu-button {
+            position: relative; cursor: pointer; opacity: 0.9;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+            padding: 2px; background: black; border-radius: 16px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            border: none; width: 80%; max-width: 300px; margin: 6px 0; text-align: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .menu-button:hover { opacity: 1; box-shadow: 0 0 30px rgba(185, 49, 252, 0.8); }
+        .menu-button:active { transform: scale(0.95); }
+        .menu-button-inner {
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+            padding: 14px 20px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; text-align: center; font-weight: 800; font-size: 1.2rem;
+            width: 100%; height: 100%; box-sizing: border-box; letter-spacing: 1px;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+        }
+        .menu-button-inner svg { width: 22px; height: 22px; stroke: white; flex-shrink: 0; }
+
+        .back-button {
+            position: absolute; top: 20px; left: 20px;
+            background: black; border: none; border-radius: 50%; padding: 2px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            width: 52px; height: 52px; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .back-button:active { transform: scale(0.90); }
+        .back-button:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .back-button span {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            background: #B931FC; border-radius: 50%;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-size: 1.6rem; font-weight: bold;
+        }
+
+        .level-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; width: 80%; max-width: 300px; }
+        .level-btn {
+            position: relative; width: 60px; height: 60px; background: black; border-radius: 16px; padding: 2px;
+            border: none; cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .level-btn:active { transform: scale(0.92); }
+        .level-btn:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .level-btn span {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-weight: bold; font-size: 1.2rem;
+        }
+        .level-btn.locked { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .level-btn.current { box-shadow: 0 0 30px rgba(0, 210, 255, 0.8); }
+
+        .settings-row {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 80%; max-width: 300px; padding: 8px 12px; margin: 8px 0;
+            background: black; border-radius: 16px; padding: 2px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .settings-row .inner {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-weight: bold; font-size: 1.1rem;
+        }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .3s; border-radius: 34px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px;
+            background-color: white; transition: .3s; border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        input:checked + .slider { background: linear-gradient(135deg, #8122b0, #dc98fd); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* ===== ИГРОВОЙ ИНТЕРФЕЙС ===== */
+        #game-container { 
+            display: none; flex-direction: column; width: 100%; height: 100%; 
+            z-index: 11; position: absolute; top: 0; left: 0;
+            background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+        }
+        #header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            width: 100%; padding: 10px 15px; font-size: 1.2rem; font-weight: bold; 
+            box-sizing: border-box; 
+        }
+        #timer-display {
+            font-size: 1.3rem; font-weight: 900;
+            color: #fff; background: rgba(0,0,0,0.6); padding: 4px 12px;
+            border-radius: 20px; margin: 0 8px;
+            text-shadow: 0 0 8px #00d2ff; display: none;
+        }
+        
+        .btn-control {
+            background: black; border-radius: 16px; padding: 2px; border: none; cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd); display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .btn-control:active { transform: scale(0.92); }
+        .btn-control:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .btn-control span {
+            display: block; padding: 6px 16px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; font-weight: bold; font-size: 1.1rem;
+        }
+
+        #game-board { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 100%; height: 65%; padding: 10px 0; align-content: center; }
+
+        /* ===== БУТЫЛКИ ===== */
+        .bottle { 
+            display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; touch-action: manipulation; 
+            width: 60px; height: 130px; 
+            position: relative; /* для позиционирования крышки */
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease; 
+            filter: drop-shadow(0 0 3px rgba(220, 240, 255, 0.8)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)); 
+        }
+        .bottle-body-container { width: 100%; height: 100%; position: relative; clip-path: url(#bottle-clip); background: rgba(255, 255, 255, 0.05); pointer-events: none; }
+        .liquid-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; height: 80%; pointer-events: none; overflow: hidden; }
+        .liquid { position: absolute; width: 100%; height: 25%; bottom: 0; transition: opacity 0.2s; pointer-events: none; }
+        .bottle-body-container::before { content: ''; position: absolute; top: 15%; left: 6px; width: 20%; height: 60%; background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent); border-radius: 50px; filter: blur(2px); z-index: 10; pointer-events: none; }
+
+        /* ===== КРЫШКА ===== */
+        .cap {
+            position: absolute;
+            top: -30px;           /* начальная позиция над горлышком */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 14px;
+            background: linear-gradient(180deg, #A0522D 0%, #6B3A1F 100%);
+            border-radius: 8px 8px 0 0;
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.5);
+            z-index: 25;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .cap.closing {
+            animation: capDrop 0.5s ease-out forwards;
+        }
+        .cap.capped {
+            top: -2px;            /* конечное положение (сидит на горлышке) */
+            opacity: 1;
+            animation: none;
+        }
+        @keyframes capDrop {
+            0%   { opacity: 0; top: -30px; }
+            60%  { opacity: 1; top: -4px; }
+            100% { opacity: 1; top: -2px; }
+        }
+
+        /* ===== ЧАСТИЦЫ (ИСКРЫ) ===== */
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 200;
+            animation: particleFly 0.7s ease-out forwards;
+        }
+        @keyframes particleFly {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+        }
+
+        /* ===== АНИМАЦИЯ ИГРЫ И ПОДСВЕТКА ОБУЧЕНИЯ ===== */
+        .bottle.selected { transform: translateY(-20px) scale(1.05); filter: drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 0 25px rgba(135, 206, 250, 0.6)); z-index: 10; }
+        .bottle.pouring { transform: translateY(-70px) scale(1.15); filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(135, 206, 250, 0.7)); z-index: 50; }
+        .bottle.receiving { transform: scale(1.1) translateY(10px); }
+        .bottle.receiving .bottle-body-container { filter: drop-shadow(0 0 20px rgba(135, 206, 250, 0.8)); }
+        
+        /* Свечение для обучения (подсветка без подъема!) */
+        .bottle.highlight-src { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(0, 210, 255, 1)) drop-shadow(0 0 30px rgba(0, 210, 255, 0.9)) !important; z-index: 50 !important; }
+        .bottle.highlight-dst { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(255, 102, 178, 1)) drop-shadow(0 0 30px rgba(255, 102, 178, 0.9)) !important; z-index: 50 !important; }
+        /* Усиленная подсветка пустой бутылки-приёмника */
+        .bottle.highlight-dst .bottle-body-container {
+            background: rgba(255, 102, 178, 0.25) !important;
+            box-shadow: inset 0 0 20px rgba(255, 102, 178, 0.9);
+        }
+
+        /* ===== КАПЛЯ ===== */
+        .liquid-stream { position: fixed; z-index: 999; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35)); }
+
+        /* ===== ОБУЧЕНИЕ (TUTORIAL) ===== */
+        #tutorial-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50; display: none;
+        }
+        #tutorial-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 3, 32, 0.6); backdrop-filter: blur(2px);
+            z-index: 51; pointer-events: auto;
+        }
+        
+        /* Текстовая подсказка с яркой подсветкой */
+        #tutorial-label {
+            position: absolute; bottom: 35%; width: 100%; text-align: center;
+            z-index: 55; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s;
+            color: #fff; font-size: 1.5rem; font-weight: 900;
+            text-shadow: 0 0 20px rgba(185, 49, 252, 1), 0 0 40px rgba(185, 49, 252, 0.8), 0 0 80px rgba(185, 49, 252, 0.5), 0 2px 0 #110b2b;
+        }
+
+        /* Анимация в попапе (Увеличено пространство, чтобы бутылки не наезжали) */
+        #tutorial-popup {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 60; display: none; width: 90%; max-width: 360px;
+        }
+        #tutorial-popup-content {
+            background: #1a0a3a; border: 2px solid #8122b0; border-radius: 30px;
+            padding: 30px 25px; text-align: center; box-shadow: 0 0 40px rgba(185, 49, 252, 0.4);
+        }
+        #tutorial-popup-content h2 { font-size: 1.8rem; margin-bottom: 15px; color: #00d2ff; font-weight: 900; }
+        
+        /* Сцена для демо-анимации (Увеличена высота, чтобы избежать наложения) */
+        .demo-scene { position: relative; width: 160px; height: 120px; margin: 15px auto 25px auto; overflow: visible; }
+        
+        .demo-bottle-wrapper { position: absolute; display: flex; justify-content: center; align-items: center; width: 22px; height: 50px; }
+        
+        .demo-bottle {
+            width: 100%; height: 100%; position: relative;
+            filter: drop-shadow(0 0 2px rgba(220, 240, 255, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
+        }
+        .demo-bottle-body-container {
+            width: 100%; height: 100%; position: relative;
+            clip-path: url(#bottle-clip);
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+        .demo-liquid-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 80%;
+            overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+        }
+        .demo-liquid { width: 100%; height: 25%; }
+        
+        .demo-bottle-body-container::before {
+            content: ''; position: absolute; top: 15%; left: 3px; width: 20%; height: 60%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent);
+            border-radius: 50px; filter: blur(1px); z-index: 10; pointer-events: none;
+        }
+        
+        .demo-src { left: 15px; bottom: 0; animation: demoLift 3s ease-in-out infinite; z-index: 2; }
+        .demo-dst { right: 15px; bottom: 0; }
+        /* Перевернутая бутылка-источник размещается прямо над приёмником и чуть выше */
+        .demo-clone { left: 123px; bottom: 55px; animation: demoClone 3s ease-in-out infinite; z-index: 5; }
+
+        /* Стрелка теперь на одном уровне с бутылками (по центру) */
+        .demo-arrow {
+            position: absolute;
+            left: 70px;
+            top: 82px;
+            font-size: 26px;
+            font-weight: 900;
+            color: #00d2ff;
+            text-shadow: 0 0 10px #00d2ff,0 0 20px #00d2ff,0 0 30px #00d2ff;
+            animation: demoArrowPulse 1.2s ease-in-out infinite;
+        }
+
+        /* Ключевые кадры для демо-анимации */
+        @keyframes demoLift {
+            0%, 15% { transform: translateY(0); opacity: 1; z-index: 2; }
+            25% { transform: translateY(-30px); opacity: 1; z-index: 2; }
+            40% { transform: translateY(-30px); opacity: 0; z-index: 2; }
+            65% { transform: translateY(-30px); opacity: 0; z-index: 2; }
+            70% { transform: translateY(0); opacity: 0; z-index: 2; }
+            85%, 100% { transform: translateY(0); opacity: 1; z-index: 2; }
+        }
+        @keyframes demoClone {
+            0%, 35% { opacity: 0; transform: rotate(180deg) scale(0.8) translateY(-5px); }
+            45% { opacity: 1; transform: rotate(180deg) scale(1) translateY(5px); }
+            70% { opacity: 1; transform: rotate(180deg) scale(1) translateY(5px); }
+            75% { opacity: 0; transform: rotate(180deg) scale(1) translateY(5px); }
+            100% { opacity: 0; transform: rotate(180deg) scale(1) translateY(5px); }
+        }
+
+        @keyframes demoArrowPulse {
+            0%,100% { transform:scale(1); }
+            50% { transform:scale(1.2); }
+        }
+
+        /* ===== ПОБЕДА И ПРОИГРЫШ ===== */
+        #win-modal, #timeout-modal, #no-moves-modal, #timer-warning-modal { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(8,3,32,0.8); display: none; justify-content: center; 
+            align-items: center; z-index: 100; backdrop-filter: blur(4px); 
+        }
+        #win-content, #timeout-content, #no-moves-content, #timer-warning-content { 
+            padding: 30px 25px; border-radius: 30px; text-align: center; 
+            background: #1a0a3a; border: 2px solid #8122b0; 
+            max-width: 360px; width: 90%;
+        }
+        #win-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #timeout-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #ff6666; font-weight: 900; }
+        #no-moves-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #timer-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        
+        #win-content button, #timeout-content button, #no-moves-content button, #timer-warning-content button { 
+            margin-top: 20px; background: black; border-radius: 16px; padding: 2px; 
+            border: none; cursor: pointer; background-image: linear-gradient(to top, #8122b0, #dc98fd); 
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3); 
+        }
+        #win-content button span, #timeout-content button span, #no-moves-content button span, #timer-warning-content button span { 
+            display: block; padding: 12px 30px; background: #B931FC; border-radius: 14px; 
+            background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; 
+            font-weight: bold; font-size: 1.1rem; 
+        }
+        #win-content button:active, #timeout-content button:active, #no-moves-content button:active, #timer-warning-content button:active { transform: scale(0.95); }
+        #no-moves-content .menu-button, #timeout-content .menu-button, #timer-warning-content .menu-button { width: auto; margin: 10px auto; padding: 0; }
+
+        /* ===== ЦИФРОВАЯ АНИМАЦИЯ ТАЙМЕРА В ПРЕДУПРЕЖДЕНИИ ===== */
+        .timer-warning-digits {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #ffaa00;
+            text-shadow: 0 0 20px rgba(255,170,0,0.5);
+            margin: 15px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 450px) {
+            .bottle { width: 50px; height: 110px; }
+            #game-board { gap: 10px; height: 60%; }
+            #tutorial-label { bottom: 30%; font-size: 1.2rem; }
+            #timer-display { font-size: 1rem; padding: 2px 8px; }
+            .timer-warning-digits { font-size: 2.8rem; }
+        }
+        @media (max-width: 360px) {
+            .bottle { width: 40px; height: 90px; }
+            #game-board { gap: 8px; }
+            .level-btn { width: 50px; height: 50px; }
+            .menu-button-inner { font-size: 1rem; padding: 12px 15px; }
+            #tutorial-label { bottom: 25%; font-size: 1rem; }
+            .timer-warning-digits { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- ===== ФОНОВЫЙ КОНТЕЙНЕР ===== -->
+        <div id="bg-container">
+            <img id="space-layer" src="spaceback.png" alt="Космос">
+            <img id="planet-layer" src="planetback.png" alt="Планеты">
+        </div>
+
+        <!-- ===== АУДИО ===== -->
+        <audio id="bg-music" src="menu.mp3" loop preload="auto"></audio>
+        <audio id="btn-sound" src="button.mp3" preload="auto"></audio>
+
+        <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
+        <div id="main-menu" class="menu-overlay">
+            <img src="name.png" class="menu-title-img" alt="BottleSort">
+            
+            <button class="menu-button" onclick="openLevelSelect()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M8 13V9m-2 2h4m5-2v.001M18 12v.001m4-.334v5.243a3.09 3.09 0 0 1-5.854 1.382L16 18a3.618 3.618 0 0 0-3.236-2h-1.528c-1.37 0-2.623.774-3.236 2l-.146.292A3.09 3.09 0 0 1 2 16.91v-5.243A6.667 6.667 0 0 1 8.667 5h6.666A6.667 6.667 0 0 1 22 11.667Z"></path>
+                    </svg>
+                    <span data-lang="menu_play">Играть</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="openSettings()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                    <span data-lang="menu_settings">Настройки</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="exitGame()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span data-lang="menu_exit">Выход</span>
+                </span>
+            </button>
+        </div>
+
+        <!-- ===== МЕНЮ УРОВНЕЙ ===== -->
+        <div id="level-select" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div class="level-grid" id="level-grid"></div>
+        </div>
+
+        <!-- ===== НАСТРОЙКИ ===== -->
+        <div id="settings-menu" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_music">Музыка</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="music-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_sound">Звук</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_lang">Язык</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="lang-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.6; width: 80%; text-align: center; color: #aaaccc;" data-lang="settings_note">Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.</p>
+        </div>
+
+        <!-- ===== ОБУЧЕНИЕ (TUTORIAL UI) ===== -->
+        <div id="tutorial-ui">
+            <div id="tutorial-overlay"></div>
+            <div id="tutorial-label"><span id="tutorial-label-text">Нажмите на эту бутылку</span></div>
+            <div id="tutorial-popup">
+                <div id="tutorial-popup-content">
+                    <h2 data-lang="tutorial_popup_title">Как играть?</h2>
+                    <div class="demo-scene">
+                        <div class="demo-bottle-wrapper demo-src">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-clone">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-dst">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-arrow">➜</div>
+                    </div>
+                    <p style="margin-bottom: 20px; line-height: 1.5; font-size: 1rem; color: #ddd;" data-lang="tutorial_popup_desc">Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!</p>
+                    <button id="tutorial-start-btn" class="menu-button" style="width: auto; margin: 0; padding: 0;">
+                        <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;">
+                            <span data-lang="tutorial_popup_btn">Начать игру</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ИГРА ===== -->
+        <div id="game-container">
+            <div id="header">
+                <button class="btn-control" onclick="openMainMenu()"><span data-lang="game_back">Меню</span></button>
+                <span style="font-weight: 800; text-shadow: 0 2px 0 #110b2b;"><span data-lang="game_level">Уровень</span> <span id="level-num">1</span></span>
+                <span id="timer-display">1:30</span>
+                <button class="btn-control" id="reset-btn"><span data-lang="game_reset">⟳</span></button>
+            </div>
+            <div id="game-board"></div>
+        </div>
+
+        <!-- ===== ОКНО ПОБЕДЫ ===== -->
+        <div id="win-modal">
+            <div id="win-content">
+                <h2 data-lang="win_title">Уровень пройден!</h2>
+                <p data-lang="win_desc">Все жидкости успешно рассортированы!</p>
+                <button id="modal-next-btn"><span data-lang="win_next">Следующий уровень</span></button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРОИГРЫША (таймер) ===== -->
+        <div id="timeout-modal">
+            <div id="timeout-content">
+                <h2 data-lang="timeout_title">Время вышло!</h2>
+                <p data-lang="timeout_desc">Вы не успели отсортировать жидкости.</p>
+                <button id="timeout-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_retry">Повторить</span>
+                </button>
+                <button id="timeout-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОТСУТСТВИЯ ХОДОВ ===== -->
+        <div id="no-moves-modal">
+            <div id="no-moves-content">
+                <h2 data-lang="no_moves_title">Нет ходов!</h2>
+                <p data-lang="no_moves_desc">Вы не можете сделать ни одного переливания.</p>
+                <button id="no-moves-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_retry">Повторить</span>
+                </button>
+                <button id="no-moves-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРЕДУПРЕЖДЕНИЯ О ТАЙМЕРЕ (только для 9 уровня) ===== -->
+        <div id="timer-warning-modal">
+            <div id="timer-warning-content">
+                <h2 data-lang="timer_warning_title">Уровень с таймером</h2>
+                <div class="timer-warning-digits" id="timer-warning-digits">10</div>
+                <p data-lang="timer_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!</p>
+                <button id="timer-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timer_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== МАСКА БУТЫЛКИ SVG ===== -->
+        <svg style="width:0; height:0; position:absolute;">
+          <defs>
+            <clipPath id="bottle-clip" clipPathUnits="objectBoundingBox">
+              <path d="M 0.28 0.05 L 0.72 0.05 L 0.72 0.25 C 0.85 0.25, 1 0.42, 1 0.65 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.65 C 0 0.42, 0.15 0.25, 0.28 0.25 Z" />
+            </clipPath>
+          </defs>
+        </svg>
+    </div>
+
+    <script>
+        // ==========================================
+        //   ПЕРЕВОДЫ И НАСТРОЙКИ
+        // ==========================================
+        const TRANSLATIONS = {
+            'en': {
+                'menu_title': 'BottleSort', 'menu_play': 'Play', 'menu_settings': 'Settings', 'menu_exit': 'Exit',
+                'levels_title': 'Select Level', 'settings_title': 'Settings', 'settings_music': 'Music', 'settings_sound': 'Sound', 'settings_lang': 'Language',
+                'settings_note': 'Place menu.mp3 and button.mp3 files in the game folder.',
+                'game_back': 'Menu', 'game_level': 'Level', 'game_reset': '⟳', 
+                'win_title': 'Level Cleared!', 'win_desc': 'All liquids sorted successfully!', 'win_next': 'Next Level',
+                'tutorial_popup_title': 'How to play?',
+                'tutorial_popup_desc': 'Click a bottle to select it. Then click an empty bottle or a bottle with the same top color. You cannot pour into a bottle with a different color!',
+                'tutorial_popup_btn': 'Start Tutorial',
+                'tutorial_label_src': 'Click this bottle',
+                'tutorial_label_dst': 'Click the other bottle',
+                'no_moves_title': 'No moves!',
+                'no_moves_desc': 'You cannot make any more moves.',
+                'no_moves_retry': 'Retry',
+                'no_moves_menu': 'Menu',
+                'timeout_title': 'Time is up!',
+                'timeout_desc': 'You did not finish sorting in time.',
+                'timeout_retry': 'Retry',
+                'timeout_menu': 'Menu',
+                'timer_warning_title': 'Level with timer',
+                'timer_warning_desc': 'This level has a time limit. Sort all liquids before time runs out or you will lose!',
+                'timer_warning_start': 'Start'
+            },
+            'ru': {
+                'menu_title': 'BottleSort', 'menu_play': 'Играть', 'menu_settings': 'Настройки', 'menu_exit': 'Выход',
+                'levels_title': 'Выбор уровня', 'settings_title': 'Настройки', 'settings_music': 'Музыка', 'settings_sound': 'Звук', 'settings_lang': 'Язык',
+                'settings_note': 'Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.',
+                'game_back': 'Меню', 'game_level': 'Уровень', 'game_reset': '⟳', 
+                'win_title': 'Уровень пройден!', 'win_desc': 'Все жидкости успешно рассортированы!', 'win_next': 'Следующий уровень',
+                'tutorial_popup_title': 'Как играть?',
+                'tutorial_popup_desc': 'Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!',
+                'tutorial_popup_btn': 'Начать игру',
+                'tutorial_label_src': 'Нажмите на эту бутылку',
+                'tutorial_label_dst': 'Нажмите на другую бутылку',
+                'no_moves_title': 'Нет ходов!',
+                'no_moves_desc': 'Вы не можете сделать ни одного переливания.',
+                'no_moves_retry': 'Повторить',
+                'no_moves_menu': 'В меню',
+                'timeout_title': 'Время вышло!',
+                'timeout_desc': 'Вы не успели отсортировать жидкости.',
+                'timeout_retry': 'Повторить',
+                'timeout_menu': 'В меню',
+                'timer_warning_title': 'Уровень с таймером',
+                'timer_warning_desc': 'На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!',
+                'timer_warning_start': 'Начать'
+            }
+        };
+
+        let currentLang = 'ru', soundEnabled = true, musicEnabled = true, maxUnlockedLevel = 15; // Все уровни открыты для проверки
+
+        function loadSettings() {
+            try {
+                const s = JSON.parse(localStorage.getItem('waterSortSettings'));
+                if(s) {
+                    currentLang = s.lang || 'ru'; soundEnabled = s.sound !== undefined ? s.sound : true;
+                    musicEnabled = s.music !== undefined ? s.music : true; maxUnlockedLevel = s.maxLevel || 15; // Если нет сохранения - всё открыто
+                }
+            } catch(e){}
+            // Для теста: всегда открыты все уровни (закомментировать, когда нужна поэтапность)
+            maxUnlockedLevel = 15;
+            document.getElementById('sound-toggle').checked = soundEnabled;
+            document.getElementById('music-toggle').checked = musicEnabled;
+            document.getElementById('lang-toggle').checked = currentLang === 'en';
+        }
+
+        function saveSettings() {
+            localStorage.setItem('waterSortSettings', JSON.stringify({
+                lang: currentLang, sound: soundEnabled, music: musicEnabled, maxLevel: maxUnlockedLevel
+            }));
+        }
+
+        function applyLanguage() {
+            const langData = TRANSLATIONS[currentLang];
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if(langData[key]) el.innerText = langData[key];
+            });
+        }
+
+        // ==========================================
+        //   МУЗЫКА И ЗВУКИ
+        // ==========================================
+        let audioContext = null;
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') audioContext.resume();
+        }
+
+        const bgMusic = document.getElementById('bg-music');
+        function updateMusic() {
+            if (musicEnabled) {
+                initAudio();
+                bgMusic.play().catch(e => {});
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function playButtonSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const btnSnd = document.getElementById('btn-sound');
+                btnSnd.currentTime = 0;
+                btnSnd.play().catch(e => {});
+            } catch (e) {}
+        }
+
+        function playPourSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.35);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.35);
+            } catch (e) {}
+        }
+
+        function playCapSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.25);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.25);
+            } catch (e) {}
+        }
+
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.menu-button') || e.target.closest('.back-button') || 
+               e.target.closest('.level-btn') || e.target.closest('.btn-control') ||
+               e.target.closest('#modal-next-btn') || e.target.closest('#timeout-retry-btn') ||
+               e.target.closest('#timeout-menu-btn') || e.target.closest('#no-moves-retry-btn') || 
+               e.target.closest('#no-moves-menu-btn') || e.target.closest('#timer-warning-start-btn')) {
+                playButtonSound();
+            }
+        });
+
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        // ==========================================
+        //   ФОНОВЫЕ ОБЪЕКТЫ (ЗВЕЗДЫ)
+        // ==========================================
+        function createStar() {
+            const star = document.createElement('div');
+            star.className = 'bg-star';
+            const size = Math.random() * 3 + 1.5;
+            star.style.width = size + 'px'; star.style.height = size + 'px';
+            star.style.background = `radial-gradient(circle, #fff, rgba(255,255,255,0.2))`;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            star.style.animationDelay = (Math.random() * 10) + 's';
+            return star;
+        }
+        function createShootingStar() {
+            const star = document.createElement('div');
+            star.className = 'shooting-star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 2 + 3) + 's';
+            star.style.animationDelay = (Math.random() * 15) + 's';
+            return star;
+        }
+        function generateBackground() {
+            const bgContainer = document.getElementById('bg-container');
+            for(let i=0; i<50; i++) { bgContainer.appendChild(createStar()); }
+            for(let i=0; i<8; i++) { bgContainer.appendChild(createShootingStar()); }
+        }
+        
+        // ==========================================
+        //   ЛОГИКА ИГРЫ И ОБУЧЕНИЯ
+        // ==========================================
+        const COLORS = { 'R':'#e74c3c', 'G':'#2ecc71', 'B':'#3498db', 'Y':'#f1c40f', 'P':'#ff66b2', 'O':'#ff8c00', 'C':'#1abc9c', 'T':'#9b59b6' };
+        const LEVEL_DATA = [
+            // Уровень 1 (обучение)
+            [['R','G','B','R'], ['G','B','R','G'], ['B','R','G','B'], []],
+            // Уровень 2
+            [['R','G','B','Y'], ['G','B','Y','R'], ['B','Y','R','G'], ['Y','R','G','B'], []],
+            // Уровень 3
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','R'], ['Y','P','R','G'], ['P','R','G','B'], []],
+            // Уровень 4
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','R'], ['P','O','R','G'], ['O','R','G','B'], []],
+            // Уровень 5
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','C'], ['P','O','C','R'], ['O','C','R','G'], ['C','R','G','B'], []],
+            // Уровень 6 (7 бутылок, 6 цветов, хаос)
+            [
+                ['R','G','B','Y'],
+                ['G','O','P','R'],
+                ['B','Y','O','G'],
+                ['Y','P','R','O'],
+                ['P','B','Y','B'],
+                ['O','R','G','P'],
+                []
+            ],
+            // Уровень 7 (8 бутылок, 7 цветов, хаос)
+            [
+                ['R','G','B','Y'],
+                ['G','C','P','R'],
+                ['B','Y','O','G'],
+                ['Y','P','C','O'],
+                ['P','O','R','C'],
+                ['O','B','G','P'],
+                ['C','R','Y','B'],
+                []
+            ],
+            // Уровень 8 (8 бутылок, 7 цветов, сложнее)
+            [
+                ['P','G','B','R'],
+                ['C','Y','O','G'],
+                ['B','R','Y','P'],
+                ['O','C','R','B'],
+                ['G','P','C','Y'],
+                ['R','O','G','C'],
+                ['Y','B','P','O'],
+                []
+            ],
+            // Уровень 9 (5 бутылок, 4 цвета, таймер 1:30) - индекс 8
+            [
+                ['R','G','B','Y'],
+                ['G','Y','R','B'],
+                ['B','R','Y','G'],
+                ['Y','B','G','R'],
+                []
+            ],
+            // Уровень 10 (7 бутылок, 6 цветов, таймер 1:30) - индекс 9
+            [
+                ['R','G','B','Y'],
+                ['P','O','R','G'],
+                ['Y','B','O','P'],
+                ['G','P','Y','O'],
+                ['B','R','G','B'],
+                ['O','Y','P','R'],
+                []
+            ],
+            // Уровень 11 (8 бутылок, 7 цветов, фиолетовый) - индекс 10
+            [
+                ['R','G','B','T'],
+                ['Y','P','O','C'],
+                ['G','C','Y','R'],
+                ['B','T','P','G'],
+                ['O','R','C','Y'],
+                ['P','B','G','T'],
+                ['C','Y','R','O'],
+                []
+            ],
+            // Уровень 12 (9 бутылок, 8 цветов, две пустые) - индекс 11
+            [
+                ['R','G','B','T'],
+                ['Y','P','O','C'],
+                ['G','C','Y','R'],
+                ['B','T','P','O'],
+                ['C','R','O','G'],
+                ['P','Y','T','B'],
+                ['O','G','C','P'],
+                ['T','B','R','Y'],
+                []
+            ],
+            // Уровень 13 (7 бутылок, 6 цветов, таймер 1:10) - индекс 12
+            [
+                ['R','G','B','Y'],
+                ['P','O','R','G'],
+                ['Y','B','P','O'],
+                ['G','Y','B','R'],
+                ['O','P','G','B'],
+                ['R','Y','O','P'],
+                []
+            ],
+            // Уровень 14 (10 бутылок, 8 цветов, две пустые, таймер 1 мин) - индекс 13
+            [
+                ['R','G','B','T'],
+                ['Y','P','O','C'],
+                ['G','C','Y','R'],
+                ['B','T','P','O'],
+                ['C','R','O','G'],
+                ['P','Y','T','B'],
+                ['O','G','C','P'],
+                ['T','B','R','Y'],
+                [],
+                []
+            ],
+            // Уровень 15 (10 бутылок, 8 цветов, две пустые, без таймера) - индекс 14
+            [
+                ['R','G','B','T'],
+                ['Y','P','O','C'],
+                ['G','C','Y','R'],
+                ['B','T','P','O'],
+                ['C','R','O','G'],
+                ['P','Y','T','B'],
+                ['O','G','C','P'],
+                ['T','B','R','Y'],
+                [],
+                []
+            ]
+        ];
+        const TUTORIAL_MOVES = [[0, 3], [2, 0], [1, 2]];
+
+        let currentLevelIdx = 0, bottles = [], selectedIdx = null, isWin = false, isAnimating = false;
+        let isTutorial = false;
+        let tutorialResolve = null;
+        let demoDropInterval = null;
+        const cappedBottles = new Set();
+        let timerInterval = null, timerSeconds = 0;
+        let pendingTimerStart = null; // для хранения параметров таймера перед показом предупреждения
+        let warningDigitInterval = null; // интервал для анимации цифр в предупреждении
+
+        const totalLevels = LEVEL_DATA.length, gameBoard = document.getElementById('game-board');
+        const levelNum = document.getElementById('level-num'), modal = document.getElementById('win-modal');
+        const modalNextBtn = document.getElementById('modal-next-btn'), resetBtn = document.getElementById('reset-btn');
+        const timeoutModal = document.getElementById('timeout-modal');
+        const timeoutRetryBtn = document.getElementById('timeout-retry-btn');
+        const timeoutMenuBtn = document.getElementById('timeout-menu-btn');
+        const noMovesModal = document.getElementById('no-moves-modal');
+        const noMovesRetryBtn = document.getElementById('no-moves-retry-btn');
+        const noMovesMenuBtn = document.getElementById('no-moves-menu-btn');
+        const timerWarningModal = document.getElementById('timer-warning-modal');
+        const timerWarningStartBtn = document.getElementById('timer-warning-start-btn');
+        const timerWarningDigits = document.getElementById('timer-warning-digits');
+        const timerDisplay = document.getElementById('timer-display');
+
+        // ========== ТАЙМЕР ==========
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerDisplay.style.display = 'none';
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(Math.max(0, timerSeconds) / 60);
+            const secs = Math.floor(Math.max(0, timerSeconds) % 60);
+            timerDisplay.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            if (timerSeconds <= 10) {
+                timerDisplay.style.color = '#ff6666';
+                timerDisplay.style.textShadow = '0 0 10px #ff0000';
+            } else if (timerSeconds <= 30) {
+                timerDisplay.style.color = '#ffaa00';
+                timerDisplay.style.textShadow = '0 0 8px #ffaa00';
+            } else {
+                timerDisplay.style.color = '#fff';
+                timerDisplay.style.textShadow = '0 0 8px #00d2ff';
+            }
+        }
+
+        function startTimer(seconds) {
+            stopTimer();
+            timerSeconds = seconds;
+            timerDisplay.style.display = 'inline-block';
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timeUp();
+                }
+            }, 1000);
+        }
+
+        function timeUp() {
+            isAnimating = true; // блокируем клики
+            stopTimer();
+            timeoutModal.style.display = 'flex';
+        }
+
+        timeoutRetryBtn.addEventListener('click', () => {
+            timeoutModal.style.display = 'none';
+            isAnimating = false;
+            loadLevel(currentLevelIdx);
+        });
+
+        timeoutMenuBtn.addEventListener('click', () => {
+            timeoutModal.style.display = 'none';
+            isAnimating = false;
+            openMainMenu();
+        });
+
+        // ========== ПРЕДУПРЕЖДЕНИЕ О ТАЙМЕРЕ (только для 9 уровня) ==========
+        function showTimerWarning(seconds, callback) {
+            // Показываем окно с цифровой анимацией
+            applyLanguage();
+            timerWarningModal.style.display = 'flex';
+            // Запускаем зацикленную анимацию от 10 до 1
+            let currentDigit = 10;
+            timerWarningDigits.textContent = currentDigit;
+            if (warningDigitInterval) clearInterval(warningDigitInterval);
+            warningDigitInterval = setInterval(() => {
+                currentDigit--;
+                if (currentDigit < 1) currentDigit = 10;
+                timerWarningDigits.textContent = currentDigit;
+            }, 1000);
+            // Сохраняем callback для запуска после нажатия кнопки
+            pendingTimerStart = { seconds, callback };
+        }
+
+        timerWarningStartBtn.addEventListener('click', () => {
+            timerWarningModal.style.display = 'none';
+            if (warningDigitInterval) {
+                clearInterval(warningDigitInterval);
+                warningDigitInterval = null;
+            }
+            if (pendingTimerStart) {
+                const { seconds, callback } = pendingTimerStart;
+                pendingTimerStart = null;
+                callback(seconds);
+            }
+        });
+
+        // ========== ЗАГРУЗКА УРОВНЯ ==========
+        function loadLevel(index) {
+            stopTimer();
+            timeoutModal.style.display = 'none';
+            noMovesModal.style.display = 'none';
+            timerWarningModal.style.display = 'none';
+            if (warningDigitInterval) {
+                clearInterval(warningDigitInterval);
+                warningDigitInterval = null;
+            }
+            pendingTimerStart = null;
+            currentLevelIdx = index;
+            bottles = LEVEL_DATA[index].map(b => [...b]);
+            selectedIdx = null; isWin = false; isAnimating = false;
+            modal.style.display = 'none';
+            levelNum.innerText = index + 1;
+            cappedBottles.clear();
+
+            // Настройка таймера для уровней 9,10,13,14 (индексы 8,9,12,13)
+            const timerLevels = { 8: 90, 9: 90, 12: 70, 13: 60 };
+            if (index in timerLevels) {
+                // Предупреждение только для 9 уровня (индекс 8)
+                if (index === 8) {
+                    // Показываем предупреждение с анимацией, а затем запускаем таймер
+                    showTimerWarning(timerLevels[index], (seconds) => {
+                        startTimer(seconds);
+                    });
+                    // Временно скрываем таймер до старта
+                    timerDisplay.style.display = 'none';
+                } else {
+                    // Для остальных уровней с таймером запускаем сразу
+                    startTimer(timerLevels[index]);
+                }
+            } else {
+                timerDisplay.style.display = 'none';
+            }
+
+            if (index === 0) {
+                isTutorial = true;
+                document.getElementById('tutorial-ui').style.display = 'block';
+            } else {
+                isTutorial = false;
+                document.getElementById('tutorial-ui').style.display = 'none';
+            }
+            
+            render();
+            
+            if (isTutorial) {
+                setTimeout(() => runTutorial(), 100);
+            }
+        }
+
+        function render() {
+            gameBoard.innerHTML = '';
+            bottles.forEach((bottleColors, idx) => {
+                const bottleEl = document.createElement('div');
+                bottleEl.className = 'bottle';
+                if (selectedIdx === idx) bottleEl.classList.add('selected');
+                bottleEl.dataset.index = idx;
+                
+                const container = document.createElement('div'); container.className = 'bottle-body-container';
+                bottleEl.appendChild(container);
+                const wrapper = document.createElement('div'); wrapper.className = 'liquid-wrapper';
+                container.appendChild(wrapper);
+                
+                for (let i = 0; i < bottleColors.length; i++) {
+                    const liquid = document.createElement('div');
+                    liquid.className = 'liquid';
+                    liquid.style.backgroundColor = COLORS[bottleColors[i]];
+                    liquid.style.bottom = (i * 25) + '%';
+                    wrapper.appendChild(liquid);
+                }
+
+                if (cappedBottles.has(idx)) {
+                    const cap = document.createElement('div');
+                    cap.className = 'cap capped';
+                    bottleEl.appendChild(cap);
+                }
+
+                bottleEl.addEventListener('click', () => handleBottleClick(parseInt(bottleEl.dataset.index)));
+                bottleEl.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); handleBottleClick(parseInt(bottleEl.dataset.index));
+                }, { passive: false });
+                gameBoard.appendChild(bottleEl);
+            });
+        }
+
+        function handleBottleClick(index) {
+            if (isTutorial) {
+                if (tutorialResolve) {
+                    tutorialResolve(index);
+                }
+                return;
+            }
+            
+            if (cappedBottles.has(index)) return;
+            if (isWin || isAnimating) return;
+            if (selectedIdx === index) { selectedIdx = null; render(); return; }
+            if (selectedIdx !== null && bottles[selectedIdx].length > 0) {
+                animatePour(selectedIdx, index);
+                selectedIdx = null; return;
+            }
+            if (bottles[index].length > 0) { selectedIdx = index; render(); }
+        }
+
+        function updateBottleDOM(el, data) {
+            const wrapper = el.querySelector('.liquid-wrapper');
+            if (!wrapper) return;
+            wrapper.innerHTML = '';
+            for (let i = 0; i < data.length; i++) {
+                const liquid = document.createElement('div');
+                liquid.className = 'liquid';
+                liquid.style.backgroundColor = COLORS[data[i]];
+                liquid.style.bottom = (i * 25) + '%';
+                wrapper.appendChild(liquid);
+            }
+        }
+
+        // ==========================================
+        //   АНИМАЦИЯ ЗАКРЫТИЯ КРЫШКОЙ + ЧАСТИЦЫ
+        // ==========================================
+        function spawnParticles(bottleEl) {
+            const rect = bottleEl.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height * 0.2;
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.8;
+                const distance = 30 + Math.random() * 35;
+                const dx = Math.cos(angle) * distance;
+                const dy = Math.sin(angle) * distance - 15;
+                const size = 4 + Math.random() * 6;
+                const hue = 40 + Math.random() * 20;
+                const color = `hsl(${hue}, 100%, 65%)`;
+                particle.style.cssText = `
+                    left: ${centerX}px;
+                    top: ${centerY}px;
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: ${color};
+                    --dx: ${dx}px;
+                    --dy: ${dy}px;
+                `;
+                document.body.appendChild(particle);
+                setTimeout(() => particle.remove(), 700);
+            }
+        }
+
+        async function animateCapClosing(index) {
+            const bottleEl = document.querySelectorAll('.bottle')[index];
+            if (!bottleEl || cappedBottles.has(index)) return;
+
+            isAnimating = true;
+
+            const oldCap = bottleEl.querySelector('.cap');
+            if (oldCap) oldCap.remove();
+
+            const cap = document.createElement('div');
+            cap.className = 'cap closing';
+            bottleEl.appendChild(cap);
+
+            playCapSound();
+            spawnParticles(bottleEl);
+
+            await sleep(500);
+            cap.classList.remove('closing');
+            cap.classList.add('capped');
+            cappedBottles.add(index);
+
+            isAnimating = false;
+        }
+
+        // ==========================================
+        //   АНИМАЦИЯ ПЕРЕЛИВАНИЯ
+        // ==========================================
+        async function animatePour(fromIdx, toIdx) {
+            const srcData = bottles[fromIdx], dstData = bottles[toIdx];
+            if (srcData.length === 0 || dstData.length >= 4) return;
+
+            const srcTopColor = srcData[srcData.length - 1];
+            if (dstData.length > 0 && dstData[dstData.length - 1] !== srcTopColor) return;
+
+            let countToMove = 0;
+            for (let i = srcData.length - 1; i >= 0; i--) { if (srcData[i] === srcTopColor) countToMove++; else break; }
+            const actualMove = Math.min(countToMove, 4 - dstData.length);
+            if (actualMove === 0) return;
+
+            playPourSound(); isAnimating = true;
+            const bottleEls = document.querySelectorAll('.bottle');
+            const srcEl = bottleEls[fromIdx], dstEl = bottleEls[toIdx];
+            
+            srcEl.classList.remove('selected'); srcEl.classList.add('pouring'); dstEl.classList.add('receiving');
+            await sleep(250);
+
+            srcEl.style.opacity = '0';
+            await sleep(150);
+
+            const dstRect = dstEl.getBoundingClientRect(), srcRect = srcEl.getBoundingClientRect();
+            const clone = srcEl.cloneNode(true);
+            clone.classList.remove('pouring', 'selected');
+            clone.style.position = 'fixed';
+            clone.style.left = (dstRect.left + (dstRect.width - srcRect.width) / 2) + 'px';
+            clone.style.top = (dstRect.top - srcRect.height - 10) + 'px';
+            clone.style.transform = 'rotate(180deg) scale(0.9)';
+            clone.style.transformOrigin = 'center center';
+            clone.style.opacity = '0';
+            clone.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+            clone.style.zIndex = '1000';
+            clone.style.pointerEvents = 'none';
+            document.body.appendChild(clone);
+            
+            clone.offsetHeight; 
+            clone.style.opacity = '1';
+            clone.style.transform = 'rotate(180deg) scale(1.15)';
+            await sleep(200);
+
+            const cloneRect = clone.querySelector('.bottle-body-container').getBoundingClientRect();
+            const dropSize = 36; 
+            const startX = cloneRect.left + (cloneRect.width / 2) - (dropSize/2); 
+            const startY = cloneRect.bottom - 10; 
+            const endX = dstRect.left + (dstRect.width / 2) - (dropSize/2);
+            const endY = dstRect.top + 15;
+
+            const streamWrapper = document.createElement('div');
+            streamWrapper.className = 'liquid-stream';
+            streamWrapper.style.width = dropSize + 'px';
+            streamWrapper.style.height = dropSize + 'px';
+            streamWrapper.style.left = startX + 'px';
+            streamWrapper.style.top = startY + 'px';
+            document.body.appendChild(streamWrapper);
+
+            const innerDrop = document.createElement('div');
+            innerDrop.style.width = '100%'; innerDrop.style.height = '100%';
+            innerDrop.style.backgroundColor = COLORS[srcTopColor];
+            innerDrop.style.borderRadius = '100% 0% 100% 100%';
+            innerDrop.style.transform = 'rotate(-45deg)';
+            innerDrop.style.position = 'relative';
+            
+            const highlight = document.createElement('div');
+            highlight.style.position = 'absolute'; highlight.style.top = '30%'; highlight.style.left = '20%';
+            highlight.style.width = '25%'; highlight.style.height = '35%'; highlight.style.background = 'white';
+            highlight.style.borderRadius = '50%'; highlight.style.opacity = '0.7'; highlight.style.filter = 'blur(1px)';
+            highlight.style.transform = 'rotate(-30deg)';
+            innerDrop.appendChild(highlight);
+            streamWrapper.appendChild(innerDrop);
+
+            const deltaX = endX - startX, deltaY = endY - startY;
+
+            streamWrapper.animate([
+                { transform: 'translate(0px, 0px) scale(0.8)', opacity: 0.8 },
+                { transform: `translate(${deltaX * 0.5}px, ${deltaY * 0.5 - 15}px) scale(1.5)`, opacity: 1 },
+                { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.8)`, opacity: 0.6 }
+            ], { duration: 300, easing: 'cubic-bezier(0.42, 0.0, 0.58, 1)', fill: 'forwards' });
+
+            await sleep(320);
+            streamWrapper.remove(); clone.remove();
+
+            for (let i = 0; i < actualMove; i++) { dstData.push(srcData.pop()); }
+            updateBottleDOM(srcEl, srcData); updateBottleDOM(dstEl, dstData);
+
+            dstEl.classList.remove('receiving'); srcEl.style.opacity = '1'; srcEl.classList.remove('pouring');
+            await sleep(500);
+            isAnimating = false;
+            checkGameState();
+        }
+
+        // ==========================================
+        //   ДЕМО-КАПЛЯ ДЛЯ ВСПЛЫВАЮЩЕГО ОКНА
+        // ==========================================
+        function createDemoDrop() {
+            const demoScene = document.querySelector('.demo-scene');
+            if (!demoScene) return;
+
+            const dropSize = 18;
+            const dropContainer = document.createElement('div');
+            dropContainer.style.position = 'absolute';
+            dropContainer.style.width = dropSize + 'px';
+            dropContainer.style.height = dropSize + 'px';
+            dropContainer.style.left = '125px';
+            dropContainer.style.top = '40px';
+            dropContainer.style.zIndex = '6';
+            demoScene.appendChild(dropContainer);
+
+            const innerDrop = document.createElement('div');
+            innerDrop.style.width = '100%';
+            innerDrop.style.height = '100%';
+            innerDrop.style.backgroundColor = '#e74c3c';
+            innerDrop.style.borderRadius = '100% 0% 100% 100%';
+            innerDrop.style.transform = 'rotate(-45deg)';
+            innerDrop.style.position = 'relative';
+
+            const highlight = document.createElement('div');
+            highlight.style.position = 'absolute';
+            highlight.style.top = '30%';
+            highlight.style.left = '20%';
+            highlight.style.width = '25%';
+            highlight.style.height = '35%';
+            highlight.style.background = 'white';
+            highlight.style.borderRadius = '50%';
+            highlight.style.opacity = '0.7';
+            highlight.style.filter = 'blur(1px)';
+            highlight.style.transform = 'rotate(-30deg)';
+
+            innerDrop.appendChild(highlight);
+            dropContainer.appendChild(innerDrop);
+
+            dropContainer.animate([
+                { transform: 'translateY(0) scale(0.8)', opacity: 0.8 },
+                { transform: 'translateY(50px) scale(1.2)', opacity: 1 },
+                { transform: 'translateY(50px) scale(0.8)', opacity: 0.6 }
+            ], {
+                duration: 400,
+                easing: 'cubic-bezier(0.42, 0.0, 0.58, 1)',
+                fill: 'forwards'
+            });
+
+            setTimeout(() => {
+                if (dropContainer.parentNode) {
+                    dropContainer.remove();
+                }
+            }, 400);
+        }
+
+        function startDemoDropLoop() {
+            const createWithDelay = () => {
+                createDemoDrop();
+                demoDropInterval = setTimeout(createWithDelay, 3000);
+            };
+            demoDropInterval = setTimeout(createWithDelay, 1500);
+        }
+
+        function stopDemoDropLoop() {
+            if (demoDropInterval) {
+                clearTimeout(demoDropInterval);
+                demoDropInterval = null;
+            }
+        }
+
+        // ==========================================
+        //   ЛОГИКА ОБУЧЕНИЯ (TUTORIAL)
+        // ==========================================
+        function waitForClickOnIndex(targetIdx) {
+            return new Promise((resolve) => {
+                tutorialResolve = (clickedIdx) => {
+                    if (clickedIdx === targetIdx) {
+                        tutorialResolve = null;
+                        resolve();
+                    }
+                };
+            });
+        }
+
+        function waitForPopupClose() {
+            return new Promise((resolve) => {
+                const btn = document.getElementById('tutorial-start-btn');
+                const closeHandler = () => {
+                    btn.removeEventListener('click', closeHandler);
+                    resolve();
+                };
+                btn.addEventListener('click', closeHandler);
+            });
+        }
+
+        async function runTutorial() {
+            const tutUI = document.getElementById('tutorial-ui');
+            const overlay = document.getElementById('tutorial-overlay');
+            const popup = document.getElementById('tutorial-popup');
+            const label = document.getElementById('tutorial-label');
+            const labelText = document.getElementById('tutorial-label-text');
+
+            applyLanguage();
+
+            tutUI.style.pointerEvents = 'auto';
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+            label.style.opacity = '0';
+            
+            startDemoDropLoop();
+
+            await waitForPopupClose();
+            
+            stopDemoDropLoop();
+            popup.style.display = 'none';
+            overlay.style.display = 'none';
+            tutUI.style.pointerEvents = 'none';
+
+            const moves = TUTORIAL_MOVES;
+            for (let i = 0; i < moves.length; i++) {
+                const [srcIdx, dstIdx] = moves[i];
+                const bottles = document.querySelectorAll('.bottle');
+
+                label.style.opacity = '1';
+                labelText.innerText = TRANSLATIONS[currentLang].tutorial_label_src;
+                bottles[srcIdx].classList.add('highlight-src');
+                
+                await waitForClickOnIndex(srcIdx);
+                bottles[srcIdx].classList.remove('highlight-src');
+                
+                labelText.innerText = TRANSLATIONS[currentLang].tutorial_label_dst;
+                bottles[dstIdx].classList.add('highlight-dst');
+                
+                await waitForClickOnIndex(dstIdx);
+                bottles[dstIdx].classList.remove('highlight-dst');
+                
+                label.style.opacity = '0';
+                await sleep(200);
+
+                await animatePour(srcIdx, dstIdx);
+            }
+
+            isTutorial = false;
+            tutUI.style.display = 'none';
+            checkGameState();
+        }
+
+        // ==========================================
+        //   ПРОВЕРКА ПОБЕДЫ И НАЛИЧИЯ ХОДОВ
+        // ==========================================
+        function hasAvailableMoves() {
+            // Проверяем, можно ли сделать хотя бы одно переливание
+            for (let i = 0; i < bottles.length; i++) {
+                const src = bottles[i];
+                if (src.length === 0) continue;
+                if (cappedBottles.has(i)) continue; // закрытые бутылки не трогаем
+                const topColor = src[src.length - 1];
+                for (let j = 0; j < bottles.length; j++) {
+                    if (i === j) continue;
+                    const dst = bottles[j];
+                    if (dst.length >= 4) continue;
+                    if (cappedBottles.has(j)) continue;
+                    if (dst.length === 0 || dst[dst.length - 1] === topColor) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function checkGameState() {
+            if (isTutorial) return;
+            
+            // Проверяем, не выиграли ли
+            let allCapped = true;
+            for (let i = 0; i < bottles.length; i++) {
+                const b = bottles[i];
+                if (b.length === 4 && b.every(color => color === b[0])) {
+                    if (!cappedBottles.has(i)) {
+                        animateCapClosing(i);
+                    }
+                } else if (b.length > 0) {
+                    allCapped = false;
+                }
+            }
+
+            if (allCapped && !isWin) {
+                isWin = true;
+                stopTimer();
+                setTimeout(() => { modal.style.display = 'flex'; }, 400);
+                return;
+            }
+
+            // Если не выиграли, проверяем наличие ходов
+            if (!isWin && !hasAvailableMoves()) {
+                // Нет ходов — показываем окно
+                isAnimating = true;
+                stopTimer();
+                noMovesModal.style.display = 'flex';
+            }
+        }
+
+        // Обработчики кнопок окна "Нет ходов"
+        noMovesRetryBtn.addEventListener('click', () => {
+            noMovesModal.style.display = 'none';
+            isAnimating = false;
+            loadLevel(currentLevelIdx);
+        });
+
+        noMovesMenuBtn.addEventListener('click', () => {
+            noMovesModal.style.display = 'none';
+            isAnimating = false;
+            openMainMenu();
+        });
+
+        // ==========================================
+        //   КНОПКИ ПОБЕДЫ И СБРОСА
+        // ==========================================
+        modalNextBtn.addEventListener('click', () => {
+            if (currentLevelIdx < totalLevels - 1) { loadLevel(currentLevelIdx + 1); modal.style.display = 'none'; } 
+            else { modal.style.display = 'none'; openMainMenu(); }
+        });
+        resetBtn.addEventListener('click', () => { loadLevel(currentLevelIdx); });
+
+        function showMenu(menuId) {
+            document.querySelectorAll('.menu-overlay').forEach(m => m.classList.add('menu-hidden'));
+            document.getElementById(menuId).classList.remove('menu-hidden');
+            document.getElementById('game-container').style.display = 'none';
+            stopTimer();
+            timeoutModal.style.display = 'none';
+            noMovesModal.style.display = 'none';
+            timerWarningModal.style.display = 'none';
+            if (warningDigitInterval) {
+                clearInterval(warningDigitInterval);
+                warningDigitInterval = null;
+            }
+            pendingTimerStart = null;
+        }
+
+        function openMainMenu() {
+            showMenu('main-menu');
+            applyLanguage();
+            if(musicEnabled) updateMusic();
+            
+            const tutUI = document.getElementById('tutorial-ui');
+            const label = document.getElementById('tutorial-label');
+            tutUI.style.display = 'none';
+            label.style.opacity = '0';
+            isTutorial = false;
+            tutorialResolve = null;
+            stopDemoDropLoop();
+            stopTimer();
+        }
+
+        function openLevelSelect() {
+            showMenu('level-select'); applyLanguage();
+            const grid = document.getElementById('level-grid'); grid.innerHTML = '';
+            for(let i=0; i<totalLevels; i++) {
+                const btn = document.createElement('div');
+                btn.className = 'level-btn';
+                btn.innerHTML = `<span>${i+1}</span>`;
+                if (i+1 > maxUnlockedLevel) btn.classList.add('locked');
+                if (i+1 === maxUnlockedLevel) btn.classList.add('current');
+                btn.onclick = () => {
+                    if (i+1 <= maxUnlockedLevel) {
+                        initAudio();
+                        document.getElementById('game-container').style.display = 'flex';
+                        document.getElementById('level-select').classList.add('menu-hidden');
+                        loadLevel(i);
+                        if(musicEnabled) updateMusic();
+                    }
+                };
+                grid.appendChild(btn);
+            }
+        }
+
+        function openSettings() { showMenu('settings-menu'); applyLanguage(); }
+
+        function exitGame() {
+            if(confirm("Закрыть игру?")) {
+                window.close();
+                document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; color:white; background:#080320; font-size:2rem;">Игра закрыта</div>';
+            }
+        }
+
+        document.getElementById('music-toggle').addEventListener('change', function(e) {
+            musicEnabled = e.target.checked; saveSettings();
+            if(musicEnabled) updateMusic();
+            else { bgMusic.pause(); bgMusic.currentTime = 0; }
+        });
+        document.getElementById('sound-toggle').addEventListener('change', function(e) {
+            soundEnabled = e.target.checked; saveSettings();
+        });
+        document.getElementById('lang-toggle').addEventListener('change', function(e) {
+            currentLang = e.target.checked ? 'en' : 'ru'; saveSettings(); applyLanguage();
+            if(document.getElementById('level-select').classList.contains('menu-hidden') === false) openLevelSelect();
+            if(document.getElementById('settings-menu').classList.contains('menu-hidden') === false) openSettings();
+        });
+
+        // ==========================================
+        //   СТАРТ
+        // ==========================================
+        loadSettings();
+        applyLanguage();
+        generateBackground();
+        openMainMenu();
+    </script>
+</body>
+</html>

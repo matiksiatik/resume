@@ -1,0 +1,48 @@
+<!-- Только разметка для настроек, вставляется в #settings-menu -->
+<button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+<img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+<div class="settings-row">
+    <div class="inner">
+        <span data-lang="settings_music">Музыка</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="music-toggle" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>
+<div class="settings-row">
+    <div class="inner">
+        <span data-lang="settings_sound">Звук</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="sound-toggle" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>
+<div class="settings-row">
+    <div class="inner">
+        <span data-lang="settings_lang">Язык</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="lang-toggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>
+<p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.6; width: 80%; text-align: center; color: #aaaccc;" data-lang="settings_note">Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.</p>
+
+<style>
+    /* Стили для настроек */
+    .settings-row {
+        display: flex; justify-content: space-between; align-items: center;
+        width: 80%; max-width: 300px; padding: 8px 12px; margin: 8px 0;
+        background: black; border-radius: 16px; padding: 2px;
+        background-image: linear-gradient(to top, #8122b0, #dc98fd);
+        box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+    }
+    .settings-row .inner {
+        width: 100%; display: flex; justify-content: space-between; align-items: center;
+        padding: 12px 20px; background: #B931FC; border-radius: 14px;
+        background-image: linear-gradient(to top, #a62ce2, #c045fc);
+        color: white; font-weight: bold; font-size: 1.1rem;
+    }
+</style>

@@ -1,0 +1,483 @@
+// ==========================================
+//   ПЕРЕВОДЫ
+// ==========================================
+const TRANSLATIONS = {
+    'en': {
+        'menu_title': 'BottleSort', 'menu_play': 'Play', 'menu_settings': 'Settings', 'menu_exit': 'Exit',
+        'levels_title': 'Select Level', 'settings_title': 'Settings', 'settings_music': 'Music', 'settings_sound': 'Sound', 'settings_lang': 'Language',
+        'settings_note': 'Place menu.mp3 and button.mp3 files in the game folder.',
+        'game_back': 'Menu', 'game_level': 'Level', 'game_reset': '⟳', 
+        'win_title': 'Level Cleared!', 'win_desc': 'All liquids sorted successfully!', 'win_next': 'Next Level',
+        'tutorial_popup_title': 'How to play?',
+        'tutorial_popup_desc': 'Click a bottle to select it. Then click an empty bottle or a bottle with the same top color. You cannot pour into a bottle with a different color!',
+        'tutorial_popup_btn': 'Start Tutorial',
+        'tutorial_label_src': 'Click this bottle',
+        'tutorial_label_dst': 'Click the other bottle',
+        'no_moves_title': 'No moves!',
+        'no_moves_desc': 'You cannot make any more moves.',
+        'no_moves_retry': 'Retry',
+        'no_moves_menu': 'Menu',
+        'timeout_title': 'Time is up!',
+        'timeout_desc': 'You did not finish sorting in time.',
+        'timeout_retry': 'Retry',
+        'timeout_menu': 'Menu',
+        'timer_warning_title': 'Level with timer',
+        'timer_warning_desc': 'This level has a time limit. Sort all liquids before time runs out or you will lose!',
+        'timer_warning_start': 'Start',
+        'hidden_warning_title': 'Hidden Layers',
+        'hidden_warning_desc': 'The lower layers are hidden. Pour the top layer to reveal the next one. Revealed layers stay visible forever!',
+        'hidden_warning_start': 'Start',
+        'frozen_warning_title': 'Frozen Bottle',
+        'frozen_warning_desc': 'Complete any regular bottle (fill it with one color) to unfreeze the frozen one. After unfreezing, you can use it for sorting.',
+        'frozen_warning_start': 'Start',
+        'big_warning_title': 'Giant Bottle',
+        'big_warning_desc': 'Pour the red liquid into the giant bottle in the center and fill it to the top! It only accepts its own color. Some red layers are hidden deeper — free them by pouring other colors aside.',
+        'big_warning_start': 'Start'
+    },
+    'ru': {
+        'menu_title': 'BottleSort', 'menu_play': 'Играть', 'menu_settings': 'Настройки', 'menu_exit': 'Выход',
+        'levels_title': 'Выбор уровня', 'settings_title': 'Настройки', 'settings_music': 'Музыка', 'settings_sound': 'Звук', 'settings_lang': 'Язык',
+        'settings_note': 'Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.',
+        'game_back': 'Меню', 'game_level': 'Уровень', 'game_reset': '⟳', 
+        'win_title': 'Уровень пройден!', 'win_desc': 'Все жидкости успешно рассортированы!', 'win_next': 'Следующий уровень',
+        'tutorial_popup_title': 'Как играть?',
+        'tutorial_popup_desc': 'Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!',
+        'tutorial_popup_btn': 'Начать игру',
+        'tutorial_label_src': 'Нажмите на эту бутылку',
+        'tutorial_label_dst': 'Нажмите на другую бутылку',
+        'no_moves_title': 'Нет ходов!',
+        'no_moves_desc': 'Вы не можете сделать ни одного переливания.',
+        'no_moves_retry': 'Повторить',
+        'no_moves_menu': 'В меню',
+        'timeout_title': 'Время вышло!',
+        'timeout_desc': 'Вы не успели отсортировать жидкости.',
+        'timeout_retry': 'Повторить',
+        'timeout_menu': 'В меню',
+        'timer_warning_title': 'Уровень с таймером',
+        'timer_warning_desc': 'На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!',
+        'timer_warning_start': 'Начать',
+        'hidden_warning_title': 'Скрытые слои',
+        'hidden_warning_desc': 'Нижние слои скрыты. Перелейте верхний слой, чтобы открыть следующий. Открытые слои остаются видимыми навсегда!',
+        'hidden_warning_start': 'Начать',
+        'frozen_warning_title': 'Замороженная бутылка',
+        'frozen_warning_desc': 'Завершите любую обычную бутылку (заполните её одним цветом), чтобы разморозить замёрзшую. После разморозки вы сможете использовать её для сортировки.',
+        'frozen_warning_start': 'Начать',
+        'big_warning_title': 'Большая бутылка',
+        'big_warning_desc': 'Переливайте красную жидкость в большую бутылку в центре и заполните её до верха! Она принимает только свой цвет. Часть красных слоёв спрятана глубже — освободите их, перелив другие цвета в стороны.',
+        'big_warning_start': 'Начать'
+    }
+};
+
+// ==========================================
+//   ЦВЕТА
+// ==========================================
+const COLORS = { 'R':'#e74c3c', 'G':'#2ecc71', 'B':'#3498db', 'Y':'#f1c40f', 'P':'#ff66b2', 'O':'#ff8c00', 'C':'#1abc9c', 'T':'#9b59b6', 'M':'#d500f9' };
+const COLOR_KEYS = ['R','G','B','Y','P','O','C','T','M'];
+
+// ==========================================
+//   ХЕЛПЕРЫ ГЕНЕРАЦИИ УРОВНЕЙ
+// ==========================================
+function hasAvailableMovesForBottles(bottles) {
+    for (let i = 0; i < bottles.length; i++) {
+        const src = bottles[i];
+        if (src.length === 0) continue;
+        const topColor = src[src.length - 1];
+        for (let j = 0; j < bottles.length; j++) {
+            if (i === j) continue;
+            const dst = bottles[j];
+            if (dst.length >= 4) continue;
+            if (dst.length === 0 || dst[dst.length - 1] === topColor) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function generateLevel(totalBottles, hiddenCount, partialLengths, emptyCount, colorSet = COLOR_KEYS, maxAttempts = 100) {
+    const fullBottles = totalBottles - emptyCount - partialLengths.length;
+    let attempts = 0;
+    while (attempts < maxAttempts) {
+        attempts++;
+        let bottles = [];
+        for (let i = 0; i < fullBottles; i++) {
+            let bottle = [];
+            for (let j = 0; j < 4; j++) {
+                bottle.push(colorSet[Math.floor(Math.random() * colorSet.length)]);
+            }
+            bottles.push(bottle);
+        }
+        for (let len of partialLengths) {
+            let bottle = [];
+            for (let j = 0; j < len; j++) {
+                bottle.push(colorSet[Math.floor(Math.random() * colorSet.length)]);
+            }
+            bottles.push(bottle);
+        }
+        for (let i = 0; i < emptyCount; i++) {
+            bottles.push([]);
+        }
+        let hiddenIndices = [];
+        if (hiddenCount > 0) {
+            let pool = Array.from({length: fullBottles}, (_,i) => i);
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i+1));
+                [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
+            hiddenIndices = pool.slice(0, hiddenCount);
+        }
+        if (hasAvailableMovesForBottles(bottles)) {
+            return { bottles, hiddenIndices };
+        }
+    }
+    return { bottles: generateFallback(totalBottles, hiddenCount, partialLengths, emptyCount), hiddenIndices: [] };
+}
+
+function generateFallback(totalBottles, hiddenCount, partialLengths, emptyCount) {
+    const fallback = [
+        ['R','G','B','Y'], ['P','O','C','R'], ['G','B','Y','P'], ['O','C','R','G'],
+        ['B','Y','P','O'], ['C','R','G','B'], ['Y','P','O','C'], []
+    ];
+    while (fallback.length < totalBottles) { fallback.push(['R','G','B','Y']); }
+    return fallback.slice(0, totalBottles);
+}
+
+// ==========================================
+//   СГЕНЕРИРОВАННЫЕ УРОВНИ 23-27
+// ==========================================
+const LEVEL23 = generateLevel(9, 3, [], 1);
+const LEVEL24 = generateLevel(13, 5, [3,3,3,3], 0);
+const LEVEL25 = generateLevel(15, 7, [3,3,2], 0);
+const LEVEL26 = generateLevel(12, 0, [], 1);
+const LEVEL27 = generateLevel(20, 7, [3,3,3,2,2,2], 0);
+
+let levelHiddenIndices = [];
+levelHiddenIndices[21] = [0,1,2,3,4,5,6];
+levelHiddenIndices[22] = LEVEL23.hiddenIndices;
+levelHiddenIndices[23] = LEVEL24.hiddenIndices;
+levelHiddenIndices[24] = LEVEL25.hiddenIndices;
+levelHiddenIndices[25] = LEVEL26.hiddenIndices;
+levelHiddenIndices[26] = LEVEL27.hiddenIndices;
+
+// ==========================================
+//   УРОВНИ 28-32
+// ==========================================
+const LEVEL28 = [
+    ['O','O','O','Y'],
+    ['P','P','P','Y'],
+    ['G','B','R','P'],
+    [], 
+    ['R','Y','G','B'],
+    ['B','G','Y','R'],
+    ['R','G','B','O'],
+    []               
+];
+
+const LEVEL29 = (() => {
+    const result = generateLevel(13, 0, [], 1, ['R','G','B','Y']);
+    const bottles = result.bottles;
+    bottles.push(['R','G','B','Y']);
+    bottles.push(['R','G','B','Y']);
+    return bottles;
+})();
+
+const LEVEL30 = (() => {
+    const result = generateLevel(13, 3, [], 2, ['R','G','B','Y','P']);
+    let bottles = result.bottles;
+    bottles[0] = bottles[0].slice(0,2);
+    bottles[1] = bottles[1].slice(0,2);
+    bottles.push(['R','G','B','Y']);
+    bottles.push(['R','G','B','Y']);
+    return { bottles, hiddenIndices: result.hiddenIndices };
+})();
+
+const LEVEL31 = (() => {
+    const result = generateLevel(15, 5, [], 2, ['R','G','B','Y','P','O']);
+    let bottles = result.bottles;
+    const common = result.bottles.slice(0, 15);
+    let finalBottles = [];
+    for (let i = 0; i < 15; i++) finalBottles.push(common[i]);
+    finalBottles.push([]);
+    finalBottles.push([]);
+    [finalBottles[2], finalBottles[15]] = [finalBottles[15], finalBottles[2]];
+    [finalBottles[12], finalBottles[16]] = [finalBottles[16], finalBottles[12]];
+    finalBottles.push(['R','G']);
+    finalBottles.push(['B','Y']);
+    finalBottles.push(['R','G','B','Y']);
+    finalBottles.push(['R','G','B','Y']);
+    finalBottles.push(['R','G','B','Y']);
+    return { bottles: finalBottles, hiddenIndices: result.hiddenIndices };
+})();
+
+const LEVEL32 = (() => {
+    const result = generateLevel(15, 0, [], 1, ['R','G','B','Y','P','O']);
+    let bottles = result.bottles;
+    let finalBottles = [];
+    for (let i = 0; i < 15; i++) finalBottles.push(result.bottles[i]);
+    finalBottles.push([]);
+    [finalBottles[3], finalBottles[15]] = [finalBottles[15], finalBottles[3]];
+    for (let i = 0; i < 5; i++) {
+        finalBottles.push(['R','G','B','Y']);
+    }
+    return { bottles: finalBottles, hiddenIndices: result.hiddenIndices };
+})();
+
+// ==========================================
+//   УРОВЕНЬ 33: БОЛЬШАЯ БУТЫЛКА (20 слоёв)
+// ==========================================
+const LEVEL33 = {
+    bigIndex: 6,
+    bigCapacity: 20,
+    bottles: [
+        ['G','R','R','R'],   // 0
+        ['B','R','R','R'],   // 1
+        ['Y','R','R','R'],   // 2
+        ['Y','R','B','R'],   // 3
+        ['G','R','B','R'],   // 4
+        ['B','R','Y','R'],   // 5
+        ['R'],               // 6 — БОЛЬШАЯ
+        ['G','Y','B','R'],   // 7
+        ['R','G','B','Y'],   // 8
+        ['R','B','G','Y'],   // 9
+        ['Y','G','B','R'],   // 10
+        ['B','G','Y','G'],   // 11
+        ['G','B','Y','G']    // 12
+    ]
+};
+
+levelHiddenIndices[28] = [];
+levelHiddenIndices[29] = [];
+levelHiddenIndices[30] = LEVEL30.hiddenIndices;
+levelHiddenIndices[31] = LEVEL31.hiddenIndices;
+levelHiddenIndices[32] = LEVEL32.hiddenIndices;
+
+// ==========================================
+//   КОНФИГ ЗАМОРОЖЕННЫХ БУТЫЛОК
+// ==========================================
+const frozenConfig = {
+    27: [{index: 6, required: 1}],
+    29: [{index: 14, required: 2}, {index: 15, required: 2}],
+    30: [{index: 15, required: 1}, {index: 16, required: 2}],
+    31: [{index: 17, required: 1}, {index: 18, required: 2}, {index: 19, required: 2}],
+    32: [{index: 16, required: 1}, {index: 17, required: 2}, {index: 18, required: 2}, {index: 19, required: 2}, {index: 20, required: 2}]
+};
+
+// ==========================================
+//   БАЗА ДАННЫХ УРОВНЕЙ
+// ==========================================
+const LEVEL_DATA = [
+    [['R','G','B','R'], ['G','B','R','G'], ['B','R','G','B'], []],
+    [['R','G','B','Y'], ['G','B','Y','R'], ['B','Y','R','G'], ['Y','R','G','B'], []],
+    [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','R'], ['Y','P','R','G'], ['P','R','G','B'], []],
+    [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','R'], ['P','O','R','G'], ['O','R','G','B'], []],
+    [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','C'], ['P','O','C','R'], ['O','C','R','G'], ['C','R','G','B'], []],
+    [['R','G','B','Y'], ['G','O','P','R'], ['B','Y','O','G'], ['Y','P','R','O'], ['P','B','Y','B'], ['O','R','G','P'], []],
+    [['R','G','B','Y'], ['G','C','P','R'], ['B','Y','O','G'], ['Y','P','C','O'], ['P','O','R','C'], ['O','B','G','P'], ['C','R','Y','B'], []],
+    [['P','G','B','R'], ['C','Y','O','G'], ['B','R','Y','P'], ['O','C','R','B'], ['G','P','C','Y'], ['R','O','G','C'], ['Y','B','P','O'], []],
+    [['R','G','B','Y'], ['G','Y','R','B'], ['B','R','Y','G'], ['Y','B','G','R'], []],
+    [['R','G','B','Y'], ['P','O','R','G'], ['Y','B','O','P'], ['G','P','Y','O'], ['B','R','G','B'], ['O','Y','P','R'], []],
+    [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','G'], ['O','R','C','Y'], ['P','B','G','T'], ['C','Y','R','O'], []],
+    [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','O'], ['C','R','O','G'], ['P','Y','T','B'], ['O','G','C','P'], ['T','B','R','Y'], []],
+    [['R','G','B','Y'], ['P','O','R','G'], ['Y','B','P','O'], ['G','Y','B','R'], ['O','P','G','B'], ['R','Y','O','P'], []],
+    [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','O'], ['C','R','O','G'], ['P','Y','T','B'], ['O','G','C','P'], ['T','B','R','Y'], [], []],
+    [['R','G','B','Y'], ['P','O','C','T'], ['R','R','G','B'], ['Y','P','O','C'], ['T','R','R','G'], ['B','Y','P','O'], ['C','T','R','R'], ['G','B','Y','P'], ['O','C','T','R'], []],
+    [['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], []],
+    [['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], []],
+    [['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], ['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], []],
+    [['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], ['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], []],
+    (function() {
+        const colors = ['R','G','B','Y','P','O','C','T'];
+        let counts = {}; colors.forEach(c => counts[c] = 10); counts['T'] = 9;
+        let pool = []; for (let c in counts) { for (let i = 0; i < counts[c]; i++) pool.push(c); }
+        function seededShuffle(arr, seed) {
+            let m = arr.length; while (m) {
+                seed = (seed * 9301 + 49297) % 233280;
+                const i = Math.floor(seed / 233280 * m); m--;
+                [arr[m], arr[i]] = [arr[i], arr[m]];
+            } return arr;
+        }
+        seededShuffle(pool, 12345);
+        let bottles = []; let idx = 0;
+        for (let i = 0; i < 19; i++) { bottles.push(pool.slice(idx, idx+4)); idx += 4; }
+        bottles.push(pool.slice(idx, idx+3)); return bottles;
+    })(),
+    (function() {
+        const colors = ['R','G','B','Y','P','O','C','T'];
+        let counts = {}; colors.forEach(c => counts[c] = 10); counts['R'] = 9;
+        let pool = []; for (let c in counts) { for (let i = 0; i < counts[c]; i++) pool.push(c); }
+        function seededShuffle(arr, seed) {
+            let m = arr.length; while (m) {
+                seed = (seed * 9301 + 49297) % 233280;
+                const i = Math.floor(seed / 233280 * m); m--;
+                [arr[m], arr[i]] = [arr[i], arr[m]];
+            } return arr;
+        }
+        seededShuffle(pool, 67890);
+        let bottles = []; let idx = 0;
+        for (let i = 0; i < 19; i++) { bottles.push(pool.slice(idx, idx+4)); idx += 4; }
+        bottles.push(pool.slice(idx, idx+3)); return bottles;
+    })(),
+    [['R','G','B','Y'], ['P','O','C','R'], ['G','B','Y','P'], ['O','C','R','G'], ['B','Y','P','O'], ['C','R','G','B'], ['Y','P','O','C'], []],
+    LEVEL23.bottles, LEVEL24.bottles, LEVEL25.bottles, LEVEL26.bottles, LEVEL27.bottles, LEVEL28,
+    LEVEL29, LEVEL30.bottles, LEVEL31.bottles, LEVEL32.bottles,
+    LEVEL33.bottles
+];
+
+// ==========================================
+//   ТАЙМЕРЫ И ОБУЧЕНИЕ
+// ==========================================
+const timerMap = {
+    8: 90, 9: 90, 12: 70, 13: 60, 16: 80, 17: 75, 20: 90, 24: 90,
+    28: 80, 30: 70, 31: 80
+};
+
+const TUTORIAL_MOVES = [[0, 3], [2, 0], [1, 2]];
+
+// ==========================================
+//   ШАБЛОНЫ ПЛАНЕТ (КАРТА УРОВНЕЙ)
+// ==========================================
+const PLANET_TPL = [
+    { bg: 'radial-gradient(circle at 35% 30%, #ff9d7a, #e8563a 55%, #a82c1e)', glow: 'rgba(255,110,80,0.5)',
+      ring: { c: '#ffd24a', tilt: -20 },
+      decor: [ {t:'crater',x:10,y:16,w:20,h:20,c:'rgba(150,35,25,0.6)'}, {t:'crater',x:56,y:28,w:14,h:14,c:'rgba(150,35,25,0.6)'},
+               {t:'crater',x:28,y:58,w:22,h:22,c:'rgba(150,35,25,0.6)'}, {t:'crater',x:66,y:64,w:12,h:12,c:'rgba(150,35,25,0.55)'},
+               {t:'spot',x:40,y:8,w:30,h:16,c:'rgba(255,255,255,0.18)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #d9a6ff, #8a3fd6 55%, #5b2396)', glow: 'rgba(160,90,255,0.45)',
+      ring: null,
+      decor: [ {t:'band',x:-10,y:26,w:120,h:13,c:'rgba(255,255,255,0.2)',r:-8}, {t:'band',x:-10,y:50,w:120,h:11,c:'rgba(0,0,0,0.2)',r:-8},
+               {t:'spot',x:14,y:70,w:14,h:14,c:'rgba(255,255,255,0.15)'}, {t:'spot',x:68,y:14,w:10,h:10,c:'rgba(255,255,255,0.2)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffe9c9, #ffb37a 55%, #d97a3c)', glow: 'rgba(255,170,110,0.5)',
+      ring: null,
+      decor: [ {t:'cloud',x:8,y:20,w:58,h:28,c:'rgba(255,255,255,0.95)',br:'60% 40% 55% 45%'},
+               {t:'cloud',x:42,y:52,w:62,h:26,c:'rgba(255,255,255,0.9)',br:'45% 55% 60% 40%'},
+               {t:'spot',x:60,y:76,w:14,h:12,c:'rgba(255,255,255,0.7)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #b98cff, #7a3fd6 55%, #4a1f8f)', glow: 'rgba(140,90,255,0.45)',
+      ring: { c: '#35e0e0', tilt: -15 },
+      decor: [ {t:'spot',x:12,y:30,w:18,h:18,c:'rgba(255,255,255,0.15)'}, {t:'spot',x:58,y:58,w:24,h:24,c:'rgba(0,0,0,0.18)'},
+               {t:'band',x:-10,y:44,w:120,h:8,c:'rgba(255,255,255,0.12)',r:-6} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffd9a8, #ff8a5c 55%, #d9534f)', glow: 'rgba(255,130,100,0.5)',
+      ring: null,
+      decor: [ {t:'spot',x:14,y:22,w:12,h:12,c:'rgba(255,120,150,0.55)'}, {t:'spot',x:50,y:14,w:9,h:9,c:'rgba(255,120,150,0.5)'},
+               {t:'spot',x:66,y:44,w:14,h:14,c:'rgba(255,120,150,0.55)'}, {t:'spot',x:30,y:62,w:10,h:10,c:'rgba(255,120,150,0.5)'},
+               {t:'spot',x:56,y:74,w:8,h:8,c:'rgba(255,120,150,0.45)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #bff0ff, #35b6e8 55%, #1a6fa8)', glow: 'rgba(90,200,255,0.5)',
+      ring: null,
+      decor: [ {t:'spot',x:16,y:18,w:16,h:16,c:'rgba(255,255,255,0.4)'}, {t:'spot',x:60,y:36,w:10,h:10,c:'rgba(255,255,255,0.35)'},
+               {t:'spot',x:36,y:64,w:14,h:14,c:'rgba(255,255,255,0.3)'}, {t:'band',x:-10,y:48,w:120,h:7,c:'rgba(255,255,255,0.18)',r:-5} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ff8aa8, #e83a6a 55%, #a8174a)', glow: 'rgba(255,90,140,0.5)',
+      ring: { c: '#ff5a7a', tilt: -12 },
+      decor: [ {t:'spot',x:12,y:34,w:20,h:20,c:'rgba(120,10,50,0.4)'}, {t:'spot',x:56,y:20,w:12,h:12,c:'rgba(120,10,50,0.4)'},
+               {t:'spot',x:44,y:66,w:16,h:16,c:'rgba(120,10,50,0.4)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffd08a, #ff9a3c 55%, #d96a1a)', glow: 'rgba(255,160,70,0.5)',
+      ring: { c: '#c8e04a', tilt: -18 },
+      decor: [ {t:'crater',x:16,y:20,w:16,h:16,c:'rgba(190,90,20,0.5)'}, {t:'crater',x:58,y:44,w:12,h:12,c:'rgba(190,90,20,0.5)'},
+               {t:'crater',x:28,y:64,w:14,h:14,c:'rgba(190,90,20,0.5)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #d9ff8a, #4ac86a 45%, #2a8ac8 82%, #1a5aa8)', glow: 'rgba(90,220,140,0.45)',
+      ring: { c: '#b8e04a', tilt: -15 },
+      decor: [ {t:'band',x:-10,y:24,w:120,h:10,c:'rgba(255,255,255,0.22)',r:14}, {t:'band',x:-10,y:48,w:120,h:9,c:'rgba(255,220,80,0.28)',r:14},
+               {t:'band',x:-10,y:68,w:120,h:8,c:'rgba(255,255,255,0.18)',r:14} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffe9a0, #ffc23c 55%, #d68a1a)', glow: 'rgba(255,200,70,0.5)',
+      ring: { c: '#ffe04a', tilt: -28 },
+      decor: [ {t:'crater',x:14,y:30,w:18,h:18,c:'rgba(200,120,20,0.5)'}, {t:'crater',x:56,y:22,w:12,h:12,c:'rgba(200,120,20,0.5)'},
+               {t:'crater',x:38,y:60,w:20,h:20,c:'rgba(200,120,20,0.5)'}, {t:'spot',x:70,y:56,w:9,h:9,c:'rgba(255,255,255,0.25)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffb8d9, #ff6a9a 55%, #d63a6a)', glow: 'rgba(255,120,170,0.5)',
+      ring: null,
+      decor: [ {t:'band',x:-10,y:38,w:120,h:15,c:'rgba(255,255,255,0.25)',r:-15},
+               {t:'spot',x:18,y:70,w:12,h:12,c:'rgba(255,255,255,0.2)'}, {t:'spot',x:64,y:16,w:10,h:10,c:'rgba(255,255,255,0.25)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #9ad4ff, #3a8ad9 55%, #1a4a96)', glow: 'rgba(90,160,255,0.5)',
+      ring: null,
+      decor: [ {t:'blob',x:8,y:24,w:32,h:28,c:'rgba(60,190,110,0.95)',br:'60% 40% 60% 40%'},
+               {t:'blob',x:50,y:44,w:36,h:32,c:'rgba(60,190,110,0.95)',br:'40% 60% 45% 55%'},
+               {t:'blob',x:24,y:64,w:28,h:24,c:'rgba(60,190,110,0.9)',br:'55% 45% 50% 50%'},
+               {t:'cloud',x:52,y:14,w:30,h:14,c:'rgba(255,255,255,0.75)',br:'60% 40% 55% 45%'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #ffc98a, #f08a3a 55%, #b8531a)', glow: 'rgba(255,150,70,0.5)',
+      ring: null,
+      decor: [ {t:'band',x:6,y:28,w:74,h:6,c:'rgba(120,50,10,0.5)',r:25}, {t:'band',x:16,y:54,w:70,h:6,c:'rgba(120,50,10,0.5)',r:-15},
+               {t:'crater',x:60,y:16,w:14,h:14,c:'rgba(120,50,10,0.45)'}, {t:'crater',x:12,y:66,w:12,h:12,c:'rgba(120,50,10,0.45)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #a8f0e0, #2ab8a0 55%, #127a6a)', glow: 'rgba(60,220,190,0.45)',
+      ring: null,
+      decor: [ {t:'band',x:-10,y:22,w:120,h:10,c:'rgba(255,255,255,0.18)',r:-6}, {t:'band',x:-10,y:44,w:120,h:10,c:'rgba(0,0,0,0.15)',r:-6},
+               {t:'band',x:-10,y:66,w:120,h:10,c:'rgba(255,255,255,0.15)',r:-6} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #c9f0a8, #5ab84a 55%, #2a7a3a)', glow: 'rgba(110,220,90,0.45)',
+      ring: null,
+      decor: [ {t:'blob',x:12,y:20,w:26,h:22,c:'rgba(30,110,50,0.5)',br:'55% 45% 60% 40%'},
+               {t:'blob',x:54,y:42,w:30,h:26,c:'rgba(30,110,50,0.5)',br:'45% 55% 40% 60%'},
+               {t:'blob',x:22,y:62,w:22,h:18,c:'rgba(30,110,50,0.45)',br:'50% 50% 55% 45%'},
+               {t:'spot',x:66,y:14,w:10,h:10,c:'rgba(255,255,255,0.25)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #e8ff9a, #8ac84a 50%, #3a8a4a 85%)', glow: 'rgba(140,220,80,0.45)',
+      ring: { c: '#7ac84a', tilt: -14 },
+      decor: [ {t:'band',x:-10,y:30,w:120,h:12,c:'rgba(255,255,255,0.2)',r:-20},
+               {t:'band',x:-10,y:56,w:120,h:9,c:'rgba(0,60,30,0.25)',r:-20},
+               {t:'spot',x:14,y:70,w:12,h:12,c:'rgba(255,255,255,0.2)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #e8a8ff, #b84ae0 55%, #7a2aa0)', glow: 'rgba(200,100,255,0.45)',
+      ring: null,
+      decor: [ {t:'spot',x:14,y:24,w:16,h:16,c:'rgba(255,255,255,0.22)'}, {t:'spot',x:58,y:52,w:20,h:20,c:'rgba(0,0,0,0.15)'},
+               {t:'spot',x:36,y:70,w:10,h:10,c:'rgba(255,255,255,0.2)'} ] },
+    { bg: 'radial-gradient(circle at 35% 30%, #a8e8ff, #3a9ad9 50%, #2a5ab8 85%)', glow: 'rgba(80,170,255,0.5)',
+      ring: null,
+      decor: [ {t:'band',x:-10,y:20,w:120,h:9,c:'rgba(255,255,255,0.22)',r:-8}, {t:'band',x:-10,y:40,w:120,h:9,c:'rgba(0,0,40,0.2)',r:-8},
+               {t:'band',x:-10,y:60,w:120,h:9,c:'rgba(255,255,255,0.2)',r:-8} ] }
+];
+
+function makeDecorEl(d) {
+    const el = document.createElement('div');
+    el.className = 'pl-decor';
+    el.style.left = d.x + '%';
+    el.style.top = d.y + '%';
+    el.style.width = d.w + '%';
+    el.style.height = d.h + '%';
+    el.style.background = d.c;
+    if (d.t === 'crater') {
+        el.style.borderRadius = '50%';
+        el.style.boxShadow = 'inset 1.5px 1.5px 2px rgba(255,255,255,0.35), inset -1px -1px 2px rgba(0,0,0,0.25)';
+    } else if (d.t === 'band') {
+        el.style.borderRadius = '50%';
+        el.style.transform = 'rotate(' + (d.r || 0) + 'deg)';
+    } else {
+        el.style.borderRadius = d.br || '50%';
+        if (d.r) el.style.transform = 'rotate(' + d.r + 'deg)';
+    }
+    return el;
+}
+
+function makePlanetVisual(i, opts) {
+    opts = opts || {};
+    const tpl = PLANET_TPL[i % PLANET_TPL.length];
+    const wrap = document.createElement('div');
+    wrap.className = 'pl-wrap';
+
+    if (!opts.mini) {
+        const halo = document.createElement('div');
+        halo.className = 'pl-halo';
+        halo.style.background = 'radial-gradient(circle, ' + tpl.glow + ' 0%, transparent 68%)';
+        wrap.appendChild(halo);
+    }
+
+    if (tpl.ring) {
+        const rb = document.createElement('div');
+        rb.className = 'pl-ring pl-ring-back';
+        rb.style.borderColor = tpl.ring.c;
+        rb.style.transform = 'rotate(' + tpl.ring.tilt + 'deg)';
+        if (opts.mini) rb.style.borderWidth = '2px';
+        wrap.appendChild(rb);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'pl-body';
+    body.style.background = tpl.bg;
+    tpl.decor.forEach(d => body.appendChild(makeDecorEl(d)));
+    const shine = document.createElement('div');
+    shine.className = 'pl-shine';
+    body.appendChild(shine);
+    wrap.appendChild(body);
+
+    if (tpl.ring) {
+        const rf = document.createElement('div');
+        rf.className = 'pl-ring pl-ring-front';
+        rf.style.borderColor = tpl.ring.c;
+        rf.style.transform = 'rotate(' + tpl.ring.tilt + 'deg)';
+        if (opts.mini) rf.style.borderWidth = '2px';
+        wrap.appendChild(rf);
+    }
+    return wrap;
+}

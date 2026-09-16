@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сортировка Жидкости</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- ===== ФОНОВЫЙ КОНТЕЙНЕР ===== -->
+        <div id="bg-container">
+            <img id="space-layer" src="spaceback.png" alt="Космос">
+            <img id="planet-layer" src="planetback.png" alt="Планеты">
+        </div>
+
+        <!-- ===== АУДИО ===== -->
+        <audio id="bg-music" src="menu.mp3" loop preload="auto"></audio>
+        <audio id="btn-sound" src="button.mp3" preload="auto"></audio>
+
+        <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
+        <div id="main-menu" class="menu-overlay">
+            <img src="name.png" class="menu-title-img" alt="BottleSort">
+            <button class="menu-button" onclick="openLevelSelect()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M8 13V9m-2 2h4m5-2v.001M18 12v.001m4-.334v5.243a3.09 3.09 0 0 1-5.854 1.382L16 18a3.618 3.618 0 0 0-3.236-2h-1.528c-1.37 0-2.623.774-3.236 2l-.146.292A3.09 3.09 0 0 1 2 16.91v-5.243A6.667 6.667 0 0 1 8.667 5h6.666A6.667 6.667 0 0 1 22 11.667Z"></path>
+                    </svg>
+                    <span data-lang="menu_play">Играть</span>
+                </span>
+            </button>
+            <button class="menu-button" onclick="openSettings()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                    <span data-lang="menu_settings">Настройки</span>
+                </span>
+            </button>
+            <button class="menu-button" onclick="exitGame()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span data-lang="menu_exit">Выход</span>
+                </span>
+            </button>
+        </div>
+
+        <!-- ===== МЕНЮ УРОВНЕЙ ===== -->
+        <div id="level-select" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 42%; max-width: 180px; height: auto; margin: 0 0 4px 0; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div id="level-map">
+                <div id="level-map-inner"></div>
+            </div>
+        </div>
+
+        <!-- ===== НАСТРОЙКИ ===== -->
+        <div id="settings-menu" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_music">Музыка</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="music-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_sound">Звук</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_lang">Язык</span>
+                    <div class="lang-dropdown" id="langDropdown">
+                        <button type="button" class="lang-btn" id="langBtn">
+                            <span id="langBtnLabel">Русский</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <div class="lang-popup" id="langPopup">
+                            <div class="lang-option" data-value="ru"><span>Русский</span><span class="check">✔</span></div>
+                            <div class="lang-option" data-value="en"><span>English</span><span class="check">✔</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.6; width: 80%; text-align: center; color: #aaaccc;" data-lang="settings_note">Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.</p>
+        </div>
+
+        <!-- ===== ОБУЧЕНИЕ ===== -->
+        <div id="tutorial-ui">
+            <div id="tutorial-overlay"></div>
+            <div id="tutorial-label"><span id="tutorial-label-text">Нажмите на эту бутылку</span></div>
+            <div id="tutorial-popup">
+                <div id="tutorial-popup-content">
+                    <h2 data-lang="tutorial_popup_title">Как играть?</h2>
+                    <div class="demo-scene">
+                        <div class="demo-bottle-wrapper demo-src">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-clone">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-dst">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-arrow">➜</div>
+                    </div>
+                    <p style="margin-bottom: 20px; line-height: 1.5; font-size: 1rem; color: #ddd;" data-lang="tutorial_popup_desc">Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!</p>
+                    <button id="tutorial-start-btn" class="menu-button" style="width: auto; margin: 0; padding: 0;">
+                        <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;">
+                            <span data-lang="tutorial_popup_btn">Начать игру</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ИГРА ===== -->
+        <div id="game-container">
+            <div id="header">
+                <button class="btn-control" onclick="openMainMenu()"><span data-lang="game_back">Меню</span></button>
+                <span style="font-weight: 800; text-shadow: 0 2px 0 #110b2b;"><span data-lang="game_level">Уровень</span> <span id="level-num">1</span></span>
+                <span id="timer-display">
+                    <svg id="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2h12v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V2z" />
+                        <path d="M6 22h12v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2z" />
+                        <path d="M12 12v-4" />
+                        <path d="M12 16v4" />
+                    </svg>
+                    <span id="timer-text">1:30</span>
+                </span>
+                <button class="btn-control" id="reset-btn"><span data-lang="game_reset">⟳</span></button>
+            </div>
+            <div id="game-board"></div>
+        </div>
+
+        <!-- ===== ОКНО ПОБЕДЫ ===== -->
+        <div id="win-modal">
+            <div id="win-content">
+                <h2 data-lang="win_title">Уровень пройден!</h2>
+                <p data-lang="win_desc">Все жидкости успешно рассортированы!</p>
+                <button id="modal-next-btn"><span data-lang="win_next">Следующий уровень</span></button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРОИГРЫША (таймер) ===== -->
+        <div id="timeout-modal">
+            <div id="timeout-content">
+                <h2 data-lang="timeout_title">Время вышло!</h2>
+                <p data-lang="timeout_desc">Вы не успели отсортировать жидкости.</p>
+                <button id="timeout-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_retry">Повторить</span>
+                </button>
+                <button id="timeout-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОТСУТСТВИЯ ХОДОВ ===== -->
+        <div id="no-moves-modal">
+            <div id="no-moves-content">
+                <h2 data-lang="no_moves_title">Нет ходов!</h2>
+                <p data-lang="no_moves_desc">Вы не можете сделать ни одного переливания.</p>
+                <button id="no-moves-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_retry">Повторить</span>
+                </button>
+                <button id="no-moves-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРЕДУПРЕЖДЕНИЯ О ТАЙМЕРЕ ===== -->
+        <div id="timer-warning-modal">
+            <div id="timer-warning-content">
+                <h2 data-lang="timer_warning_title">Уровень с таймером</h2>
+                <div class="timer-warning-digits" id="timer-warning-digits">10</div>
+                <p data-lang="timer_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!</p>
+                <button id="timer-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timer_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОБУЧЕНИЯ СКРЫТЫМ СЛОЯМ (22 уровень) ===== -->
+        <div id="hidden-warning-modal">
+            <div id="hidden-warning-content">
+                <h2 data-lang="hidden_warning_title">Скрытые слои</h2>
+                <div class="hidden-demo-scene">
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-src" id="hiddenSrc">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper">
+                                    <div class="hidden-demo-liquid" style="bottom: 50%; background-color: #e74c3c;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-clone" id="hiddenClone">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper">
+                                    <div class="hidden-demo-liquid" style="bottom: 50%; background-color: #e74c3c;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-dst" id="hiddenDst">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-arrow">➜</div>
+                    <div class="hidden-demo-drop" id="hiddenDrop">
+                        <div class="hidden-demo-drop-inner"></div>
+                    </div>
+                </div>
+                <p data-lang="hidden_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">Нижние слои скрыты. Перелейте верхний слой, чтобы открыть следующий. Открытые слои остаются видимыми навсегда!</p>
+                <button id="hidden-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="hidden_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОБУЧЕНИЯ ЗАМОРОЖЕННОЙ БУТЫЛКЕ (28 уровень) ===== -->
+        <div id="frozen-warning-modal">
+            <div id="frozen-warning-content">
+                <h2 data-lang="frozen_warning_title">Замороженная бутылка</h2>
+                <div id="frozen-demo-container"></div>
+                <p data-lang="frozen_warning_desc" style="margin-bottom: 15px; font-size: 1rem; color: #ddd; line-height: 1.5;">
+                    Завершите любую обычную бутылку (заполните её одним цветом), чтобы разморозить замёрзшую. После разморозки вы сможете использовать её для сортировки.
+                </p>
+                <button id="frozen-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="frozen_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОБУЧЕНИЯ БОЛЬШОЙ БУТЫЛКЕ (33 уровень) ===== -->
+        <div id="bigbottle-warning-modal">
+            <div id="bigbottle-warning-content">
+                <h2 data-lang="big_warning_title">Большая бутылка</h2>
+                <div class="bigdemo-scene">
+                    <div class="bigdemo-small-wrap" id="bigDemoSmall">
+                        <div class="bigdemo-small-glass">
+                            <div class="bigdemo-small-liq" id="bigDemoSmallLiq"></div>
+                        </div>
+                    </div>
+                    <div class="bigdemo-arrow">➜</div>
+                    <div class="bigdemo-tall-wrap" id="bigDemoTall">
+                        <div class="bigdemo-tall-glass">
+                            <div class="bigdemo-tall-liq" id="bigDemoTallLiq"></div>
+                        </div>
+                        <div class="bigdemo-counter" id="bigDemoCounter">2/8</div>
+                    </div>
+                </div>
+                <p data-lang="big_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">Переливайте красную жидкость в большую бутылку в центре и заполните её до верха! Она принимает только свой цвет. Часть красных слоёв спрятана глубже — освободите их, перелив другие цвета в стороны.</p>
+                <button id="bigbottle-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="big_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== МАСКИ БУТЫЛОК SVG ===== -->
+        <svg style="width:0; height:0; position:absolute;">
+          <defs>
+            <clipPath id="bottle-clip" clipPathUnits="objectBoundingBox">
+              <path d="M 0.28 0.05 L 0.72 0.05 L 0.72 0.25 C 0.85 0.25, 1 0.42, 1 0.65 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.65 C 0 0.42, 0.15 0.25, 0.28 0.25 Z" />
+            </clipPath>
+            <clipPath id="bottle-clip-big" clipPathUnits="objectBoundingBox">
+              <path d="M 0.30 0.012 L 0.70 0.012 L 0.70 0.05 C 0.87 0.05, 1 0.115, 1 0.23 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.23 C 0 0.115, 0.13 0.05, 0.30 0.05 Z" />
+            </clipPath>
+          </defs>
+        </svg>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Примерочная №9 — AR-ателье аксессуаров</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@500;600;700;800&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1d1712;
+    --paper:#f4ecdd;
+    --paper2:#e9dec6;
+    --accent:#e2472a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#14110d;color:var(--ink);font-family:Manrope,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  /* ---------- сцена ---------- */
+  /* видео больше не является фоном: его рисует Three.js теми же
+     формулами, что и аксессуары — рассинхрон исключён */
+  #stage{position:fixed;inset:0}
+  #cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  #gl{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+  #vignette{position:absolute;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 120px rgba(12,9,6,.28)}
+  #flash{position:absolute;inset:0;z-index:3;background:#fff;opacity:0;pointer-events:none}
+
+  /* ---------- верхняя плашка ---------- */
+  #topbar{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:flex-start;padding:16px 18px;pointer-events:none}
+  .brand{background:var(--paper);border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:9px 14px 8px}
+  .brand b{display:block;font-family:Unbounded;font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+  .brand span{display:block;margin-top:2px;font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;opacity:.55}
+  #status{display:flex;align-items:center;gap:9px;background:var(--ink);color:var(--paper);border:1.5px solid var(--ink);box-shadow:4px 4px 0 rgba(29,23,18,.45);padding:10px 14px;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+  #status .dot{width:8px;height:8px;border-radius:50%;background:#7d7365;animation:blink 1.1s infinite}
+  #status.on .dot{background:var(--accent);animation:none}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---------- подсказка ---------- */
+  #hint{position:absolute;left:50%;bottom:150px;transform:translateX(-50%) translateY(8px);z-index:5;background:var(--ink);color:var(--paper);padding:10px 18px;font-size:12.5px;font-weight:700;letter-spacing:.04em;opacity:0;transition:.3s;pointer-events:none;box-shadow:4px 4px 0 rgba(29,23,18,.4);text-align:center;max-width:86vw}
+  #hint.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- нижняя панель ---------- */
+  #hud{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:flex-end;justify-content:center;gap:14px;padding:16px;flex-wrap:wrap}
+  .dock{background:var(--paper);border:1.5px solid var(--ink);box-shadow:6px 6px 0 rgba(18,13,9,.88);display:flex;align-items:stretch;max-width:100%}
+  .cats{display:flex;flex-direction:column;border-right:1.5px solid var(--ink)}
+  .cat{appearance:none;width:58px;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;border-bottom:1.5px solid var(--ink);cursor:pointer;color:var(--ink);font-family:Manrope}
+  .cat:last-child{border-bottom:0}
+  .cat svg{width:25px;height:25px}
+  .cat small{font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  .cat:hover{background:var(--paper2)}
+  .cat.active{background:var(--ink);color:var(--paper)}
+  .cat.active:hover{background:var(--ink)}
+  .items-wrap{display:flex;flex-direction:column;min-width:0}
+  #itemsHead{padding:8px 14px 0;font-size:9px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;opacity:.5;white-space:nowrap}
+  #items{display:flex;gap:8px;padding:8px 12px 12px;overflow-x:auto;max-width:min(58vw,560px)}
+  #items::-webkit-scrollbar{height:6px}
+  #items::-webkit-scrollbar-track{background:var(--paper2)}
+  #items::-webkit-scrollbar-thumb{background:var(--ink)}
+  .item{flex:0 0 auto;width:78px;border:1.5px solid var(--ink);background:var(--paper2);cursor:pointer;padding:8px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--ink);font-family:Manrope;transition:transform .12s}
+  .item:hover{transform:translateY(-2px)}
+  .item svg{width:58px;height:32px}
+  .item small{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .item.active{background:var(--accent);color:var(--paper)}
+  .item.active:hover{transform:none}
+
+  .actions{display:flex;align-items:center;gap:12px}
+  .rbtn{width:52px;height:52px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);display:grid;place-items:center;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+  .rbtn svg{width:22px;height:22px}
+  .rbtn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+  .rbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .rbtn.on{background:var(--accent);color:var(--paper)}
+  #shotBtn{width:76px;height:76px;background:var(--accent);color:var(--paper)}
+  #shotBtn svg{width:30px;height:30px}
+
+  /* ---------- полароид ---------- */
+  #shot{position:fixed;right:26px;bottom:26px;z-index:20;width:min(330px,80vw);background:#fbf6ea;border:1.5px solid var(--ink);box-shadow:10px 10px 0 rgba(18,13,9,.85);padding:13px 13px 0;opacity:0;transform:translateY(26px) rotate(5deg);pointer-events:none;transition:opacity .35s,transform .45s cubic-bezier(.2,1.4,.4,1)}
+  #shot.show{opacity:1;transform:translateY(0) rotate(-2deg);pointer-events:auto}
+  #shot img{width:100%;display:block;border:1.5px solid var(--ink)}
+  #shot .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px 12px}
+  #shot .cap{font-family:Caveat;font-size:23px;line-height:1}
+  #shot .btns{display:flex;gap:8px}
+  .sbtn{appearance:none;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);width:36px;height:36px;display:grid;place-items:center;cursor:pointer}
+  .sbtn:hover{background:var(--accent)}
+  .sbtn svg{width:16px;height:16px}
+
+  /* ---------- тосты ---------- */
+  #toasts{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+  .toast{background:var(--ink);color:var(--paper);padding:10px 18px;font-size:12.5px;font-weight:700;box-shadow:4px 4px 0 rgba(18,13,9,.4);animation:tin .25s;text-align:center;max-width:88vw}
+  @keyframes tin{from{opacity:0;transform:translateY(-8px)}}
+
+  /* ---------- стартовый экран ---------- */
+  #boot{position:fixed;inset:0;z-index:30;background:var(--paper);display:grid;place-items:center;padding:24px;overflow-y:auto}
+  #boot::after{content:'';position:absolute;inset:13px;border:1.5px solid var(--ink);pointer-events:none}
+  #boot::before{content:'';position:absolute;inset:19px;border:1px solid var(--ink);opacity:.35;pointer-events:none}
+  .boot-in{text-align:center;max-width:660px;position:relative;z-index:1}
+  .eyebrow{font-size:10px;font-weight:800;letter-spacing:.34em;text-transform:uppercase;opacity:.55}
+  .boot-in h1{font-family:Unbounded;font-weight:900;font-size:clamp(34px,7vw,78px);letter-spacing:.02em;line-height:1.04;margin:16px 0 6px;text-transform:uppercase}
+  .boot-in h1 .no{color:transparent;-webkit-text-stroke:2px var(--ink)}
+  .silh{display:flex;justify-content:center;gap:20px;margin:20px 0 22px;color:var(--ink)}
+  .silh svg{width:52px;height:30px;opacity:0;animation:rise .6s forwards}
+  .silh svg:nth-child(1){animation-delay:.1s}.silh svg:nth-child(2){animation-delay:.2s}
+  .silh svg:nth-child(3){animation-delay:.3s}.silh svg:nth-child(4){animation-delay:.4s}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .boot-in p{font-size:14px;font-weight:600;line-height:1.55;max-width:460px;margin:0 auto 24px;opacity:.8}
+  #startBtn{appearance:none;font-family:Unbounded;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;background:var(--ink);color:var(--paper);border:1.5px solid var(--ink);padding:17px 30px;cursor:pointer;box-shadow:6px 6px 0 #cbbd9e;display:inline-flex;align-items:center;gap:12px;transition:transform .12s,box-shadow .12s}
+  #startBtn svg{width:19px;height:19px}
+  #startBtn:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 #cbbd9e}
+  #startBtn:disabled{opacity:.6;cursor:wait}
+  #bootMsg{margin-top:16px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;opacity:.5;min-height:14px}
+  #bootMsg.err{color:#a32c14;opacity:1}
+  .fine{margin-top:20px;font-size:11px;font-weight:600;opacity:.45}
+
+  /* ---------- карточка помощи с камерой ---------- */
+  #permHelp{display:none;text-align:left;margin:0 auto 20px;max-width:560px;background:var(--paper2);border:1.5px solid var(--ink);padding:16px 18px;box-shadow:5px 5px 0 rgba(29,23,18,.28)}
+  #permHelp.show{display:block}
+  .ph-title{font-family:Unbounded;font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;color:var(--accent)}
+  .ph-text{font-size:13px;font-weight:600;line-height:1.5;margin-bottom:8px}
+  .ph-steps{margin:0 0 6px;padding-left:20px;font-size:13px;font-weight:600;line-height:1.7}
+  .ph-steps b{font-weight:800}
+  .ph-dl{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 2px}
+  .ph-dl[hidden]{display:none}
+  .ph-dlbtn{appearance:none;display:inline-flex;align-items:center;gap:10px;border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);font-family:Manrope;font-weight:800;font-size:12px;letter-spacing:.04em;padding:12px 16px;cursor:pointer;box-shadow:4px 4px 0 #cbbd9e;transition:transform .12s,box-shadow .12s}
+  .ph-dlbtn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 #cbbd9e}
+  .ph-dlbtn svg{width:17px;height:17px;flex:none}
+  .ph-dlbtn.mac{background:var(--accent)}
+  .ph-cmd{display:flex;align-items:center;gap:10px;margin:12px 0 4px;background:var(--ink);color:var(--paper);padding:9px 12px}
+  .ph-cmd[hidden]{display:none}
+  .ph-cmd code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;flex:1;overflow-x:auto;white-space:nowrap}
+  .ph-cmd button{appearance:none;border:1.5px solid var(--paper);background:var(--accent);color:var(--paper);font-family:Manrope;font-weight:800;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:7px 10px;cursor:pointer;flex:none}
+  .ph-cmd button:hover{background:#c93a20}
+  .ph-note{font-size:11.5px;font-weight:700;line-height:1.5;opacity:.65;margin-top:8px}
+  .ph-note[hidden]{display:none}
+  .ph-link{font-size:12px;font-weight:700;margin-top:8px}
+  .ph-link a{color:var(--accent)}
+  .ph-foot{display:flex;align-items:center;gap:12px;margin-top:14px}
+  #phRetry{appearance:none;font-family:Unbounded;font-weight:700;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;background:var(--ink);color:var(--paper);border:1.5px solid var(--ink);padding:12px 16px;cursor:pointer;box-shadow:3px 3px 0 #cbbd9e;display:inline-flex;align-items:center;gap:8px;transition:transform .12s,box-shadow .12s}
+  #phRetry:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #cbbd9e}
+  #phRetry svg{width:15px;height:15px}
+
+  @media (max-width:760px){
+    .dock{flex-direction:column}
+    .cats{flex-direction:row;width:100%;border-right:0;border-bottom:1.5px solid var(--ink)}
+    .cat{flex:1;flex-direction:row;justify-content:center;border-bottom:0;border-right:1.5px solid var(--ink);padding:9px 0}
+    .cat:last-child{border-right:0}
+    .cat small{display:none}
+    #items{max-width:100%}
+    #hud{padding:10px;gap:10px}
+    .actions{width:100%;justify-content:center}
+    #shot{right:12px;bottom:12px}
+    .item{width:68px}
+    .item svg{width:50px;height:28px}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <video id="cam" playsinline muted autoplay></video>
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="flash"></div>
+
+  <div id="topbar">
+    <div class="brand">
+      <b>Примерочная №9</b>
+      <span>AR · ателье аксессуаров</span>
+    </div>
+    <div id="status"><span class="dot"></span><span id="statusTxt">ищу лицо</span></div>
+  </div>
+
+  <div id="hint">Не вижу лица — подойдите ближе и добавьте света</div>
+
+  <div id="hud">
+    <div class="dock">
+      <div class="cats" id="cats"></div>
+      <div class="items-wrap">
+        <div id="itemsHead"></div>
+        <div id="items"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="rbtn" id="defileBtn" title="Дефиле: автосмена аксессуаров">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5.2h-5.2"/></svg>
+      </button>
+      <button class="rbtn" id="resetBtn" title="Снять всё">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.6"/><path d="M6 6l12 12"/></svg>
+      </button>
+      <button class="rbtn" id="shotBtn" title="Снимок (пробел)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3.4L9.2 5.4h5.6L16.6 8H20a1 1 0 0 1 1 1v9.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.4" r="3.4"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="shot">
+  <img id="shotImg" alt="Снимок из примерочной">
+  <div class="foot">
+    <div class="cap" id="shotCap">примерка №1</div>
+    <div class="btns">
+      <button class="sbtn" id="dlBtn" title="Скачать снимок">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0-4-4m4 4 4-4M5 19.5h14"/></svg>
+      </button>
+      <button class="sbtn" id="closeShotBtn" title="Закрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<div id="boot">
+  <div class="boot-in">
+    <div class="eyebrow">AR · ателье · работает в браузере</div>
+    <h1>Примерочная <span class="no">№9</span></h1>
+    <div class="silh">
+      <svg viewBox="0 0 56 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="15" cy="17" r="8"/><circle cx="41" cy="17" r="8"/><path d="M23 17h10M7 15 3 11M49 15l4-4"/></svg>
+      <svg viewBox="0 0 56 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5h16v9H20z"/><path d="M20 14c-5 0-9.4-1.8-12.6-3.8-2.6-1.6-5.2.6-3.6 3C6.8 18 16 20.4 28 20.4S49.2 18 52.2 13.2c1.6-2.4-1-4.6-3.6-3C45.4 12.2 41 14 36 14"/></svg>
+      <svg viewBox="0 0 56 32"><path fill="currentColor" d="M28 15c-3-3.2-7.4-3.8-11-2-3.6 1.8-5.4 5-4.4 8.2 2-1.6 4.8-1.8 7.4-.6 3.2 1.5 6.4 1 8-2.6zM28 15c3-3.2 7.4-3.8 11-2 3.6 1.8 5.4 5 4.4 8.2-2-1.6-4.8-1.8-7.4-.6-3.2 1.5-6.4 1-8-2.6z"/></svg>
+      <svg viewBox="0 0 56 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="20" r="7"/><circle cx="39" cy="20" r="7"/><path d="M17 13V9.5a3 3 0 0 1 6 0M39 13V9.5a3 3 0 0 0-6 0"/></svg>
+    </div>
+    <p>Очки, шляпы, усы и серьги примеряются на ваше лицо через веб-камеру. При первом запуске браузер спросит разрешение — нажмите «Разрешить». Всё считается локально, видео никуда не уходит.</p>
+
+    <div id="permHelp">
+      <div class="ph-title" id="phTitle"></div>
+      <div class="ph-text" id="phText"></div>
+      <ol class="ph-steps" id="phSteps"></ol>
+      <div class="ph-dl" id="phDl" hidden>
+        <button class="ph-dlbtn" id="dlBat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0-4-4m4 4 4-4M5 19.5h14"/></svg>
+          Windows · start.bat
+        </button>
+        <button class="ph-dlbtn mac" id="dlSh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0-4-4m4 4 4-4M5 19.5h14"/></svg>
+          macOS · start.command
+        </button>
+      </div>
+      <div class="ph-cmd" id="phCmd" hidden>
+        <code id="phCmdText"></code>
+        <button id="phCopy">копировать</button>
+      </div>
+      <div class="ph-link" id="phLink" hidden></div>
+      <div class="ph-note" id="phNote" hidden></div>
+      <div class="ph-foot">
+        <button id="phRetry">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5.2h-5.2"/></svg>
+          Проверить снова
+        </button>
+      </div>
+    </div>
+
+    <button id="startBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3.4L9.2 5.4h5.6L16.6 8H20a1 1 0 0 1 1 1v9.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.4" r="3.4"/></svg>
+      Включить камеру
+    </button>
+    <div id="bootMsg">заряжаю нейросеть…</div>
+    <div class="fine">Запрос на камеру появляется у адресной строки. Нужен Chrome/Firefox/Safari, адрес localhost или https</div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { FilesetResolver, FaceLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+
+/* ============================================================
+   БАЗА: сцена, камера, свет
+   Единица измерения — «юнит лица»: полуширина лица = 100.
+   Важно: 1 юнит сцены = 1 CSS-пиксель экрана (на плоскости z=0).
+============================================================ */
+const video   = document.getElementById('cam');
+const glCanvas= document.getElementById('gl');
+let W = innerWidth, H = innerHeight;
+
+const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, alpha:true, antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.setSize(W, H);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+
+const scene  = new THREE.Scene();
+const CAMERA_D = 600;
+const camera = new THREE.PerspectiveCamera(50, W/H, 1, 4000);
+camera.position.set(0, 0, CAMERA_D);
+
+function fitCamera(){
+  W = innerWidth; H = innerHeight;
+  camera.aspect = W/H;
+  camera.fov = 2 * Math.atan((H/2) / CAMERA_D) * 180/Math.PI;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+}
+fitCamera();
+addEventListener('resize', fitCamera);
+
+scene.add(new THREE.HemisphereLight(0xfff5e4, 0x4a3c2c, 1.05));
+const key = new THREE.DirectionalLight(0xffffff, 1.7); key.position.set(0.7, 1.1, 1.2); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffe6c8, 0.5); fill.position.set(-1, -0.2, 0.6); scene.add(fill);
+
+/* ============================================================
+   ВИДЕО-ФОН ВНУТРИ СЦЕНЫ
+   Кадр камеры рисуется плоскостью в той же системе координат,
+   что и аксессуары, — теми же формулами cover и зеркала.
+   Поэтому точка лица из MediaPipe и её пиксель на фоне
+   совпадают по построению, на любом устройстве.
+============================================================ */
+const videoTex = new THREE.VideoTexture(video);
+videoTex.colorSpace = THREE.NoColorSpace;      // пиксели видео проходят без перекраски
+videoTex.minFilter = THREE.LinearFilter;
+videoTex.magFilter = THREE.LinearFilter;
+videoTex.generateMipmaps = false;
+
+const BG_Z = -800;                              // глубоко позади лица, ничего не перекрывает
+const bgUniforms = {
+  map:   { value: videoTex },
+  uCrop: { value: new THREE.Vector4(1, 1, 0, 0) }, // fracU, fracV, offU, offV (cover-кроп)
+};
+const bgMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.ShaderMaterial({
+    uniforms: bgUniforms,
+    depthWrite: false,
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D map; uniform vec4 uCrop; varying vec2 vUv;
+      void main(){
+        vec2 uv = vUv * uCrop.xy + uCrop.zw;
+        uv.x = 1.0 - uv.x;                       // зеркало селфи, как раньше
+        gl_FragColor = texture2D(map, uv);
+      }`
+  })
+);
+bgMesh.position.z = BG_Z;
+bgMesh.renderOrder = -1;
+bgMesh.visible = false;
+scene.add(bgMesh);
+
+function updateBg(){
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const has = started && vw > 0 && vh > 0;
+  bgMesh.visible = has;
+  if (!has) return;
+  const d = CAMERA_D - BG_Z;                    // расстояние камера → плоскость фона
+  const visH = d * H / CAMERA_D;                // видимая высота на этой глубине
+  bgMesh.scale.set(visH * (W/H), visH, 1);
+  const sa = W/H, va = vw/vh;
+  const fu = Math.min(1, sa/va), fv = Math.min(1, va/sa);
+  bgUniforms.uCrop.value.set(fu, fv, (1-fu)/2, (1-fv)/2);
+}
+
+/* ============================================================
+   Помощники для процедурных моделей
+============================================================ */
+const M = (color, o={}) => new THREE.MeshStandardMaterial({ color, roughness:.42, metalness:0, ...o });
+const GOLD  = () => M(0xc79b3b, { metalness:.92, roughness:.24 });
+const V3 = (x,y,z) => new THREE.Vector3(x,y,z);
+
+function bone(a, b, r, m){
+  const A = V3(...a), B = V3(...b), d = B.clone().sub(A), len = d.length();
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), m);
+  mesh.position.copy(A).addScaledVector(d, .5);
+  mesh.quaternion.setFromUnitVectors(V3(0,1,0), d.normalize());
+  return mesh;
+}
+function tubeCurve(pts, r, m, {closed=false, z=null, seg=72, tension=.7}={}){
+  const arr = pts.map(p => V3(p[0], p[1], z !== null ? z : (p[2]||0)));
+  const curve = new THREE.CatmullRomCurve3(arr, closed, 'catmullrom', tension);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, seg, r, 10, closed), m);
+}
+function lathe(pts, m, seg=56){
+  return new THREE.Mesh(new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg), m);
+}
+function shapeFromPoints(pts){
+  const s = new THREE.Shape();
+  s.moveTo(pts[0].x, pts[0].y);
+  for (let i=1;i<pts.length;i++) s.lineTo(pts[i].x, pts[i].y);
+  s.closePath();
+  return s;
+}
+function loopPoints(raw, n=52, tension=.75){
+  const c = new THREE.CatmullRomCurve3(raw.map(p=>V3(...p)), true, 'catmullrom', tension);
+  return c.getPoints(n);
+}
+
+/* ============================================================
+   Каталог моделей
+============================================================ */
+function buildRound(){
+  const g = new THREE.Group();
+  const gold = GOLD(), dark = M(0x241c15, {roughness:.35});
+  const lens = M(0x27372e, {transparent:true, opacity:.55, roughness:.12, metalness:.25});
+  for (const s of [-1,1]){
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(26, 2.4, 12, 44), dark);
+    rim.position.set(30*s, 0, 2); g.add(rim);
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(24.6, 36), lens);
+    glass.position.set(30*s, 0, 2.9); g.add(glass);
+    g.add(bone([53*s, 6, 1], [96*s, -7, -52], 2.1, dark));
+  }
+  g.add(bone([-5, 4, 2.4], [5, 4, 2.4], 2.2, gold));
+  return g;
+}
+
+function buildAviator(){
+  const g = new THREE.Group();
+  const gold = GOLD();
+  const lensM = M(0x33231a, {transparent:true, opacity:.55, roughness:.15, metalness:.2});
+  const pts = loopPoints([[0,20],[-28,8],[-21,-13],[0,-17],[21,-13],[28,8]]);
+  const shape = shapeFromPoints(pts);
+  for (const s of [-1,1]){
+    const glass = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {depth:2, bevelEnabled:false}), lensM);
+    glass.position.set(33*s, 0, 1); g.add(glass);
+    const rim = tubeCurve(pts.map(p=>[p.x, p.y]), 1.5, gold, {z:2.7, closed:true});
+    rim.position.x = 33*s; g.add(rim);
+    g.add(bone([58*s, 8, 1], [97*s, -7, -52], 2, gold));
+  }
+  g.add(bone([-7, 15, 2.7], [7, 15, 2.7], 1.5, gold));
+  g.add(bone([-7, -2, 2.4], [7, -2, 2.4], 1.3, gold));
+  return g;
+}
+
+function heartShape(scale=1){
+  const s = new THREE.Shape();
+  s.moveTo(0, -10*scale);
+  s.bezierCurveTo(-14*scale, 0, -13*scale, 12*scale, -6.5*scale, 12*scale);
+  s.bezierCurveTo(-2.5*scale, 12*scale, 0, 9*scale, 0, 6*scale);
+  s.bezierCurveTo(0, 9*scale, 2.5*scale, 12*scale, 6.5*scale, 12*scale);
+  s.bezierCurveTo(13*scale, 12*scale, 14*scale, 0, 0, -10*scale);
+  return s;
+}
+function buildHeart(){
+  const g = new THREE.Group();
+  const gold = GOLD();
+  const lensM = M(0xc01f2e, {transparent:true, opacity:.62, roughness:.12});
+  const pts = [];
+  const sh = heartShape(1.35).getPoints(40);
+  for (const p of sh) pts.push([p.x, p.y]);
+  const shape = shapeFromPoints(loopPoints(pts, 48, .5));
+  for (const s of [-1,1]){
+    const glass = new THREE.Mesh(new THREE.ExtrudeGeometry(heartShape(1.32), {depth:2.4, bevelEnabled:true, bevelThickness:.7, bevelSize:.7, bevelSegments:2}), lensM);
+    glass.position.set(34*s, 0, 1); g.add(glass);
+    const rim = tubeCurve(shape.getPoints(48).map(p=>[p.x,p.y]), 1.5, gold, {z:3.6, closed:true});
+    rim.position.x = 34*s; g.add(rim);
+    g.add(bone([60*s, 8, 1], [97*s, -7, -52], 2, gold));
+  }
+  g.add(bone([-16, 5, 3.4], [16, 5, 3.4], 1.6, gold));
+  return g;
+}
+
+function buildTophat(){
+  const g = new THREE.Group();
+  const felt = M(0x211b16, {roughness:.5});
+  g.add(lathe([[0,0],[52,0],[60,3],[64,5],[56,6],[52,9],[50,62],[53,64],[0,64]], felt));
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(53, 53.4, 13, 48), M(0xc22c17, {roughness:.45}));
+  band.position.y = 13; g.add(band);
+  return g;
+}
+
+function buildCowboy(){
+  const g = new THREE.Group();
+  const felt = M(0x5a3b22, {roughness:.58});
+  g.add(lathe([[0,44],[40,44.5],[46,41],[47,12],[50,7],[72,-6],[75,-4],[71,0],[50,3],[47,6]], felt));
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(48.4, 48.8, 9, 44), M(0x241a12, {roughness:.5}));
+  band.position.y = 31; g.add(band);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(4.5, 6.5, 2.2), GOLD());
+  buckle.position.set(0, 31, 49.4); g.add(buckle);
+  return g;
+}
+
+function buildCrown(){
+  const g = new THREE.Group();
+  const gold = GOLD();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(46, 46, 15, 40), gold);
+  base.position.y = 7.5; g.add(base);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(46, 1.7, 10, 48), gold);
+  rim.rotation.x = Math.PI/2; rim.position.y = 15; g.add(rim);
+  for (let i=0;i<7;i++){
+    const a = i/7 * Math.PI*2;
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(6.5, 17, 4), gold);
+    spike.position.set(Math.cos(a)*42, 23, Math.sin(a)*42);
+    g.add(spike);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 10), gold);
+    ball.position.set(Math.cos(a)*42, 32.5, Math.sin(a)*42);
+    g.add(ball);
+  }
+  const gemM = M(0xc01f2e, {roughness:.12, metalness:.3});
+  const gem2 = M(0x1f7a4d, {roughness:.12, metalness:.3});
+  [-16, 0, 16].forEach((x, i) => {
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(5.2), i===1 ? gemM : gem2);
+    gem.position.set(x, 7.5, 46.6); g.add(gem);
+  });
+  return g;
+}
+
+function buildHandlebar(){
+  const g = new THREE.Group();
+  const hair = M(0x38251a, {roughness:.62});
+  const pts = [[0,-2,2],[10,1,1.3],[20,5,.1],[28,10,-1.4],[31,15,-2],[29,19.5,-2.4]];
+  for (const s of [-1,1]){
+    const t = tubeCurve(pts, 3, hair, {seg:56});
+    t.scale.x = s; g.add(t);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(3.3, 12, 10), hair);
+    tip.position.set(29*s, 19.5, -2.4); g.add(tip);
+  }
+  return g;
+}
+
+function buildBrush(){
+  const g = new THREE.Group();
+  const hair = M(0x38251a, {roughness:.62});
+  const s = new THREE.Shape();
+  s.moveTo(-26, 4); s.lineTo(26, 4); s.lineTo(26, 0);
+  s.quadraticCurveTo(24, -7, 0, -8); s.quadraticCurveTo(-24, -7, -26, 0);
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, {depth:5, bevelEnabled:true, bevelThickness:1.2, bevelSize:1.4, bevelSegments:2});
+  const m = new THREE.Mesh(geo, hair);
+  m.position.z = -2.5; g.add(m);
+  return g;
+}
+
+function buildPencil(){
+  const g = new THREE.Group();
+  const hair = M(0x2e1e14, {roughness:.55});
+  const pts = [[0,0,1.6],[11,-1,.6],[22,-3,-.8],[33,-7,-2.2]];
+  for (const s of [-1,1]){
+    const t = tubeCurve(pts, 1.4, hair, {seg:48});
+    t.scale.x = s; g.add(t);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(1.6, 10, 8), hair);
+    tip.position.set(33*s, -7, -2.2); g.add(tip);
+  }
+  return g;
+}
+
+function buildHoops(){
+  const g = new THREE.Group();
+  const gold = GOLD();
+  for (const s of [-1,1]){
+    const e = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(21, 2.3, 12, 40), gold);
+    ring.position.y = -19;
+    ring.rotation.y = THREE.MathUtils.degToRad(62);
+    e.add(ring);
+    const stud = new THREE.Mesh(new THREE.SphereGeometry(2.6, 12, 10), gold);
+    e.add(stud);
+    e.position.set(95*s, -2, 0);
+    e.userData = { sp: s>0 ? 0 : 2.1, az:.08, ax:.05 };
+    g.add(e);
+  }
+  return g;
+}
+
+function buildDangle(){
+  const g = new THREE.Group();
+  const gold = GOLD();
+  const gemM = M(0xa3122c, {roughness:.1, metalness:.35});
+  for (const s of [-1,1]){
+    const e = new THREE.Group();
+    e.add(new THREE.Mesh(new THREE.SphereGeometry(2.6, 12, 10), gold));
+    for (let i=0;i<3;i++){
+      const link = new THREE.Mesh(new THREE.TorusGeometry(2.4, .8, 8, 18), gold);
+      link.position.set((i%2 ? 1.1 : -1.1)*s, -5 - i*4.6, 0);
+      e.add(link);
+    }
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(2.6, 3, 10), gold);
+    cap.position.y = -19.5; e.add(cap);
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(6), gemM);
+    gem.position.y = -27.5; e.add(gem);
+    e.position.set(95*s, -2, 0);
+    e.userData = { sp: s>0 ? .9 : 3.2, az:.17, ax:.1 };
+    g.add(e);
+  }
+  return g;
+}
+
+/* ============================================================
+   Каталог: предметы, категории, SVG-силуэты для витрины
+============================================================ */
+const SVG = {
+  round:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="15" cy="17" r="8"/><circle cx="41" cy="17" r="8"/><path d="M23 17h10M7 15 3 11M49 15l4-4"/></g>`,
+  aviator:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 11c6.5-2.4 15.5-2.4 22 0-1 8.4-5.4 13-11 13S7 19.4 6 11z"/><path d="M50 11c-6.5-2.4-15.5-2.4-22 0 1 8.4 5.4 13 11 13s10-4.6 11-13z"/><path d="M28 11v3"/></g>`,
+  heart:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M15 24C10 20 7 17 7 14c0-2.6 1.8-4 3.8-4 1.8 0 3.2 1 4.2 2.6C16 11 17.4 10 19.2 10c2 0 3.8 1.4 3.8 4 0 3-3 6-8 10z"/><path d="M41 24c-5-4-8-7-8-10 0-2.6 1.8-4 3.8-4 1.8 0 3.2 1 4.2 2.6C42 11 43.4 10 45.2 10c2 0 3.8 1.4 3.8 4 0 3-3 6-8 10z"/></g>`,
+  tophat:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M18 4h20v14H18z"/><path d="M10 18h36c2.2 0 4 1 4 3H6c0-2 1.8-3 4-3z"/><path d="M18 13h20"/></g>`,
+  cowboy:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 5h16v9H20z"/><path d="M20 14c-5 0-9.4-1.8-12.6-3.8-2.6-1.6-5.2.6-3.6 3C6.8 18 16 20.4 28 20.4s21.2-2.4 24.2-7.2c1.6-2.4-1-4.6-3.6-3C45.4 12.2 41 14 36 14"/></g>`,
+  crown:`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M11 24 8.5 10l8 6L22 6l5.5 10 8-6L33 24z"/><path d="M11 24h22"/></g>`,
+  handlebar:`<path fill="currentColor" d="M28 14c-3-3.2-7.4-3.8-11-2-3.6 1.8-5.4 5-4.4 8.2 2-1.6 4.8-1.8 7.4-.6 3.2 1.5 6.4 1 8-2.6zM28 14c3-3.2 7.4-3.8 11-2 3.6 1.8 5.4 5 4.4 8.2-2-1.6-4.8-1.8-7.4-.6-3.2 1.5-6.4 1-8-2.6z"/>`,
+  brush:`<path fill="currentColor" d="M12 11h32v4c0 3.4-6.4 5.6-16 5.6S12 18.4 12 15z"/>`,
+  pencil:`<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 16c7-2.6 14-2.6 20 .6M30 16c6-3.2 13-3.2 20-.6"/><circle cx="5.2" cy="16.4" r="1.2" fill="currentColor"/><circle cx="50.8" cy="16.4" r="1.2" fill="currentColor"/></g>`,
+  hoops:`<g fill="none" stroke="currentColor" stroke-width="2.4"><ellipse cx="17" cy="18" rx="6.4" ry="9"/><ellipse cx="39" cy="18" rx="6.4" ry="9"/></g>`,
+  dangle:`<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5c0-2 4-2 4 0v4M17 9v3M17 12l3.4 4.5L17 21l-3.4-4.5z"/><path d="M37 5c0-2 4-2 4 0v4M39 9v3M39 12l3.4 4.5L39 21l-3.4-4.5z"/></g>`,
+};
+
+const CATS = [
+  { id:'glasses', label:'Очки',  icon:`<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7.4" cy="13.6" r="4.4"/><circle cx="16.6" cy="13.6" r="4.4"/><path d="M11.8 13.6h.4M3 12 1.6 9.4M21 12l1.4-2.6"/></g>` },
+  { id:'hat',     label:'Шляпы', icon:`<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6v8.5H9z"/><path d="M2.4 13.5c0 2 4.3 3.2 9.6 3.2s9.6-1.2 9.6-3.2"/></g>` },
+  { id:'stache',  label:'Усы',   icon:`<path fill="currentColor" d="M12 11.2c-1.7-1.8-4.2-2.1-6.2-.9-2 1.2-3 3.3-2.2 5.2 1.2-.9 2.9-1.1 4.4-.4 1.9.9 3.4.5 4.4-1.5zM12 11.2c1.7-1.8 4.2-2.1 6.2-.9 2 1.2 3 3.3 2.2 5.2-1.2-.9-2.9-1.1-4.4-.4-1.9.9-3.4.5-4.4-1.5z"/>` },
+  { id:'ears',    label:'Серьги',icon:`<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5.4"/><path d="M12 9.6V7.2a2.4 2.4 0 0 1 4.8 0"/></g>` },
+];
+
+const ITEMS = [
+  { id:'round',      cat:'glasses', name:'Круглые',   svg:SVG.round,      build:buildRound,      place:'eyes' },
+  { id:'aviator',    cat:'glasses', name:'Авиаторы',  svg:SVG.aviator,    build:buildAviator,    place:'eyes' },
+  { id:'heart',      cat:'glasses', name:'Сердечки',  svg:SVG.heart,      build:buildHeart,      place:'eyes' },
+  { id:'tophat',     cat:'hat',     name:'Цилиндр',   svg:SVG.tophat,     build:buildTophat,     place:'hat',   tilt:-.06 },
+  { id:'cowboy',     cat:'hat',     name:'Ковбой',    svg:SVG.cowboy,     build:buildCowboy,     place:'hat',   tilt:-.03 },
+  { id:'crown',      cat:'hat',     name:'Корона',    svg:SVG.crown,      build:buildCrown,      place:'crown', tilt:-.14 },
+  { id:'handlebar',  cat:'stache',  name:'Кудрявые',  svg:SVG.handlebar,  build:buildHandlebar,  place:'mouth' },
+  { id:'brush',      cat:'stache',  name:'Щётка',     svg:SVG.brush,      build:buildBrush,      place:'mouth' },
+  { id:'pencil',     cat:'stache',  name:'Карандаш',  svg:SVG.pencil,     build:buildPencil,     place:'mouth' },
+  { id:'hoops',      cat:'ears',    name:'Кольца',    svg:SVG.hoops,      build:buildHoops,      place:'ears' },
+  { id:'dangle',     cat:'ears',    name:'Капли',     svg:SVG.dangle,     build:buildDangle,     place:'ears' },
+];
+const ITEM_BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+const CAT_BY_ID  = Object.fromEntries(CATS.map(c => [c.id, c]));
+const DEFILE = ITEMS.map(i => i.id);
+
+const MODEL_CACHE = {};
+const getModel = it => MODEL_CACHE[it.id] || (MODEL_CACHE[it.id] = it.build());
+
+const slots = {};
+for (const c of CATS){
+  const g = new THREE.Group();
+  g.visible = false;
+  head.add(g);
+  slots[c.id] = { group:g, item:null, attached:null, s:0, sv:0 };
+}
+const slotList = Object.values(slots);
+
+/* контейнер-«голова» */
+const head = new THREE.Group();
+head.visible = false;
+scene.add(head);
+
+/* ============================================================
+   Трекинг лица
+============================================================ */
+let landmarker = null, lm = null, faceSeen = false, lastSeen = 0, started = false;
+
+async function initTracker(){
+  const files = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+  );
+  const opts = delegate => ({
+    baseOptions:{
+      modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+      delegate
+    },
+    runningMode:'VIDEO',
+    numFaces:1
+  });
+  try { landmarker = await FaceLandmarker.createFromOptions(files, opts('GPU')); }
+  catch(e){ landmarker = await FaceLandmarker.createFromOptions(files, opts('CPU')); }
+}
+
+/* Точка лица → координаты сцены.
+   Те же cover-кроп и зеркало, что и у видео-фона в шейдере,
+   поэтому аксессуар всегда попадает ровно в точку лица на кадре.
+   Сцена: x вправо, y вверх, центр экрана = (0,0). */
+function worldOf(i, out){
+  const l = lm[i];
+  const vw = video.videoWidth || 1, vh = video.videoHeight || 1;
+  const k = Math.max(W/vw, H/vh), dw = vw*k, dh = vh*k;
+  const px = (W - dw)/2 + l.x*dw;              // пиксель на «нес зеркален» кадре
+  const py = (H - dh)/2 + l.y*dh;
+  return out.set(W/2 - px, H/2 - py, -(l.z || 0) * dw);
+}
+
+const A=new THREE.Vector3(), B=new THREE.Vector3(), C=new THREE.Vector3(), D=new THREE.Vector3();
+const right=new THREE.Vector3(), upV=new THREE.Vector3(), fwd=new THREE.Vector3();
+const tPos=new THREE.Vector3(), tQuat=new THREE.Quaternion();
+const smPos=new THREE.Vector3(), smQuat=new THREE.Quaternion();
+let tScale=1, smScale=1, faceAmt=0;
+const basisMat=new THREE.Matrix4(), invMat=new THREE.Matrix4();
+
+function handleResult(res, t){
+  if (res && res.faceLandmarks && res.faceLandmarks.length){
+    lm = res.faceLandmarks[0];
+    faceSeen = true; lastSeen = t;
+
+    worldOf(454, B); worldOf(234, A);
+    right.copy(B).sub(A);
+    if (right.x < 0) right.multiplyScalar(-1);
+    right.normalize();
+    worldOf(10, C); worldOf(152, D);
+    upV.copy(C).sub(D).normalize();
+    fwd.copy(right).cross(upV).normalize();
+    upV.copy(fwd).cross(right).normalize();
+    basisMat.makeBasis(right, upV, fwd);
+    tQuat.setFromRotationMatrix(basisMat);
+
+    worldOf(159, A); worldOf(145, B); C.copy(A).lerp(B,.5);
+    worldOf(386, A); worldOf(374, B); D.copy(A).lerp(B,.5);
+    tPos.copy(C).lerp(D,.5);
+    worldOf(234, A); worldOf(454, B);
+    tScale = A.distanceTo(B) / 100;
+  } else {
+    faceSeen = false;
+  }
+}
+
+/* ============================================================
+   Якоря аксессуаров (в локальных координатах «головы»)
+============================================================ */
+const _v1 = new THREE.Vector3();
+function L(i, out){ worldOf(i, out); return out.applyMatrix4(invMat); }
+const PL = {
+  eyes:  () => new THREE.Vector3(0, 0, 4),
+  mouth: () => L(1, new THREE.Vector3()).lerp(L(0, _v1), .42),
+  hat:   () => L(10, new THREE.Vector3()).add(new THREE.Vector3(0, 2, -24)),
+  crown: () => L(10, new THREE.Vector3()).add(new THREE.Vector3(0, 6, -16)),
+  ears:  () => L(234, new THREE.Vector3()).lerp(L(454, _v1), .5).add(new THREE.Vector3(0, -22, -4)),
+};
+
+/* ============================================================
+   Главный цикл
+============================================================ */
+const clock = new THREE.Clock();
+let lastVideoTime = -1, firstFace = false;
+
+function loop(){
+  requestAnimationFrame(loop);
+  const dt = Math.min(.05, clock.getDelta());
+  const t  = performance.now();
+
+  if (started && landmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime){
+    lastVideoTime = video.currentTime;
+    let res = null;
+    try { res = landmarker.detectForVideo(video, t); } catch(e){}
+    handleResult(res, t);
+    if (faceSeen && !firstFace){
+      firstFace = true;
+      wear('round');
+      toast('Примерьте что-нибудь ещё на панели ниже');
+    }
+  }
+
+  smPos.lerp(tPos, 1 - Math.exp(-dt*16));
+  smQuat.slerp(tQuat, 1 - Math.exp(-dt*16));
+  smScale += (tScale - smScale) * (1 - Math.exp(-dt*16));
+  faceAmt += ((faceSeen ? 1 : 0) - faceAmt) * (1 - Math.exp(-dt*6));
+
+  head.visible = faceAmt > .02;
+  head.position.copy(smPos);
+  head.quaternion.copy(smQuat);
+  head.scale.setScalar(Math.max(.001, smScale));
+  head.updateMatrixWorld(true);
+  invMat.copy(head.matrixWorld).invert();
+
+  for (const slot of slotList){
+    const target = slot.item ? 1 : 0;
+    slot.sv += (target - slot.s) * 170 * dt;
+    slot.sv *= Math.exp(-13 * dt);
+    slot.s  += slot.sv * dt;
+
+    if (slot.item && slot.attached !== slot.item.id){
+      slot.group.clear();
+      slot.group.add(getModel(slot.item));
+      slot.attached = slot.item.id;
+    }
+    const sc = Math.max(0, slot.s) * faceAmt;
+    slot.group.visible = sc > .02 && !!slot.item;
+    if (slot.item){
+      slot.group.position.copy(PL[slot.item.place]());
+      slot.group.rotation.set(slot.item.tilt || 0, 0, 0);
+      slot.group.scale.setScalar(sc);
+    }
+  }
+
+  const tt = t/1000;
+  for (const slot of [slots.ears]){
+    if (!slot.item || !slot.group.visible) continue;
+    for (const child of slot.group.children){
+      const u = child.userData;
+      if (u.sp === undefined) continue;
+      child.rotation.z = Math.sin(tt*1.9 + u.sp) * u.az;
+      child.rotation.x = Math.sin(tt*1.25 + u.sp*1.7) * u.ax;
+    }
+  }
+
+  updateBg();
+  updateHint(t);
+  renderer.render(scene, camera);
+}
+loop();
+
+const hintEl = document.getElementById('hint');
+let hintMode = '';
+function updateHint(t){
+  if (!started) return;
+  let mode = '';
+  if (!faceSeen && t - lastSeen > 700) mode = 'far';
+  else if (faceSeen && tScale*100 < H*.16) mode = 'closer';
+  if (mode !== hintMode){
+    hintMode = mode;
+    hintEl.classList.toggle('show', !!mode);
+    if (mode === 'closer') hintEl.textContent = 'Чуть подойдите ближе к камере';
+    if (mode === 'far')    hintEl.textContent = 'Не вижу лица — посмотрите в камеру';
+  }
+  const st = document.getElementById('status');
+  st.classList.toggle('on', faceSeen);
+  document.getElementById('statusTxt').textContent = faceSeen ? 'лицо в кадре' : 'ищу лицо';
+}
+
+/* ============================================================
+   UI: категории, витрина, надевание
+============================================================ */
+let activeCat = 'glasses';
+const catsEl = document.getElementById('cats');
+const itemsEl = document.getElementById('items');
+const itemsHead = document.getElementById('itemsHead');
+
+for (const c of CATS){
+  const b = document.createElement('button');
+  b.className = 'cat';
+  b.dataset.cat = c.id;
+  b.innerHTML = `<svg viewBox="0 0 24 24">${c.icon}</svg><small>${c.label}</small>`;
+  b.onclick = () => { activeCat = c.id; syncCats(); renderItems(); };
+  catsEl.appendChild(b);
+}
+function syncCats(){
+  catsEl.querySelectorAll('.cat').forEach(b => b.classList.toggle('active', b.dataset.cat === activeCat));
+}
+function renderItems(){
+  const list = ITEMS.filter(i => i.cat === activeCat);
+  itemsEl.innerHTML = '';
+  list.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'item' + (slots[it.cat].item === it ? ' active' : '');
+    b.innerHTML = `<svg viewBox="0 0 56 32">${it.svg}</svg><small>${it.name}</small>`;
+    b.onclick = () => wear(it.id);
+    itemsEl.appendChild(b);
+  });
+  const idx = ITEMS.indexOf(list[0]) + 1;
+  itemsHead.textContent = `— ${String(idx).padStart(2,'0')} · ${CAT_BY_ID[activeCat].label}`;
+}
+syncCats(); renderItems();
+
+function wear(id){
+  const it = ITEM_BY_ID[id];
+  const slot = slots[it.cat];
+  if (slot.item === it){
+    slot.item = null;
+  } else {
+    slot.item = it;
+    slot.s = 0; slot.sv = 6;
+    getModel(it);
+  }
+  renderItems();
+}
+
+document.getElementById('resetBtn').onclick = () => {
+  for (const c of CATS) slots[c.id].item = null;
+  renderItems();
+  toast('Аксессуары сняты');
+};
+
+let defile = false, defileTimer = null, defileIdx = 0;
+const defileBtn = document.getElementById('defileBtn');
+function defileTick(){
+  const id = DEFILE[defileIdx++ % DEFILE.length];
+  const it = ITEM_BY_ID[id];
+  activeCat = it.cat; syncCats();
+  wear(id);
+}
+defileBtn.onclick = () => {
+  defile = !defile;
+  defileBtn.classList.toggle('on', defile);
+  if (defile){ defileTick(); defileTimer = setInterval(defileTick, 2600); toast('Дефиле: аксессуары меняются сами'); }
+  else clearInterval(defileTimer);
+};
+
+/* ============================================================
+   Снимок: теперь весь кадр (видео + аксессуары) живёт
+   в одном WebGL-канвасе — снимаем напрямую с него
+============================================================ */
+const flashEl = document.getElementById('flash');
+const shotEl = document.getElementById('shot');
+const shotImg = document.getElementById('shotImg');
+const shotCap = document.getElementById('shotCap');
+let photoN = 0, lastShotURL = null;
+
+function takeShot(){
+  if (!started || !video.videoWidth) return;
+  flashEl.style.transition = 'none';
+  flashEl.style.opacity = .92;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    flashEl.style.transition = 'opacity .5s';
+    flashEl.style.opacity = 0;
+  }));
+  lastShotURL = glCanvas.toDataURL('image/png');
+  shotImg.src = lastShotURL;
+  photoN++;
+  shotCap.textContent = `примерка №${photoN}`;
+  shotEl.classList.add('show');
+}
+document.getElementById('shotBtn').onclick = takeShot;
+document.getElementById('closeShotBtn').onclick = () => shotEl.classList.remove('show');
+document.getElementById('dlBtn').onclick = () => {
+  if (!lastShotURL) return;
+  const a = document.createElement('a');
+  a.href = lastShotURL;
+  a.download = `primerochnaya-09-${photoN}.png`;
+  a.click();
+  toast('Снимок сохранён');
+};
+addEventListener('keydown', e => {
+  if (e.code === 'Space'){ e.preventDefault(); takeShot(); }
+  if (e.code === 'Escape') shotEl.classList.remove('show');
+});
+
+/* ============================================================
+   Тосты
+============================================================ */
+function toast(msg){
+  const box = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => { el.style.opacity = 0; el.style.transition = 'opacity .4s'; }, 2400);
+  setTimeout(() => el.remove(), 2900);
+}
+
+/* ============================================================
+   КАМЕРА: диагностика и гарантированный запрос разрешения
+============================================================ */
+const bootMsg  = document.getElementById('bootMsg');
+const startBtn = document.getElementById('startBtn');
+
+const isFile   = location.protocol === 'file:';
+const insecure = !window.isSecureContext;
+const apiOk    = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const onLocal  = ['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+const isWin    = /Windows/i.test(navigator.userAgent);
+
+const FILE_NAME = (() => {
+  try { return decodeURIComponent(location.pathname.split('/').pop() || 'index.html'); }
+  catch(e){ return 'index.html'; }
+})();
+const LOCAL_URL = 'http://localhost:8000/' + encodeURI(FILE_NAME);
+
+function batScript(){
+  return [
+    '@echo off',
+    'chcp 65001 >nul',
+    'title Примерочная N9 - сервер',
+    'cd /d "%~dp0"',
+    'echo ============================================',
+    'echo  Сервер запущен. Не закрывайте это окно.',
+    'echo  Адрес: ' + LOCAL_URL,
+    'echo ============================================',
+    'start "" cmd /c "timeout /t 1 >nul & start "" "' + '"' + LOCAL_URL + '"',
+    'py -m http.server 8000 2>nul || python -m http.server 8000',
+    'pause'
+  ].join('\r\n');
+}
+function shScript(){
+  return [
+    '#!/bin/bash',
+    'cd "$(dirname "$0")"',
+    'echo "============================================"',
+    'echo " Сервер запущен. Не закрывайте это окно."',
+    'echo " Адрес: ' + LOCAL_URL + '"',
+    'echo "============================================"',
+    '( sleep 1; open "' + LOCAL_URL + '" 2>/dev/null || xdg-open "' + LOCAL_URL + '" 2>/dev/null ) &',
+    'python3 -m http.server 8000'
+  ].join('\n');
+}
+function downloadLauncher(kind){
+  const win = kind === 'bat';
+  const blob = new Blob([win ? batScript() : shScript()], { type: win ? 'text/plain;charset=utf-8' : 'text/x-shellscript;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = win ? 'start-server.bat' : 'start-server.command';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(win ? 'start-server.bat скачан' : 'start-server.command скачан');
+}
+
+const HELP = {
+  nolocal: {
+    title: () => isFile
+      ? 'Браузер спросит камеру только на localhost'
+      : 'Камере нужен адрес https:// или localhost',
+    text: () => isFile
+      ? 'Страница открыта как файл (file://) — в этом режиме Chrome молча запрещает камеру и запрос не показывает вообще. Один раз запустите страницу через сервер ниже, и запрос появится.'
+      : 'Страница открыта по незащищённому адресу — браузер скрывает доступ к камере. Запустите её через localhost или выложите на https-хостинг.',
+    dl: true,
+    cmd: true,
+    steps: () => (isWin ? [
+      'Скачайте <b>start-server.bat</b> и положите его в ту же папку, где лежит этот HTML-файл.',
+      'Дважды щёлкните по нему — откроется окно сервера и браузер со страницей на localhost.',
+      'В ответ на запрос браузера нажмите <b>«Разрешить»</b>.'
+    ] : [
+      'Скачайте <b>start-server.command</b> и положите его в ту же папку, где лежит этот HTML-файл.',
+      'Дважды щёлкните по нему (если macOS запретит: правый клик → «Открыть»).',
+      'В ответ на запрос браузера нажмите <b>«Разрешить»</b>.'
+    ]),
+    note: () => 'Нужен установленный Python (python.org). Имя этой страницы уже вшито в ссылку лаунчера.'
+  },
+  denied: {
+    title: () => 'Браузер запомнил отказ — и больше не спрашивает',
+    text: () => 'Камеру для этого сайта ранее запретили, поэтому запрос не появляется. Снимаем запрет за десять секунд:',
+    dl: false, cmd: false,
+    steps: () => [
+      'Щёлкните значок слева от адреса страницы (замок / камера / «Настройки»).',
+      'Найдите «Камера» и выберите <b>«Разрешить»</b>.',
+      'Перезагрузите страницу и снова нажмите «Включить камеру».'
+    ],
+    note: () => 'Глобальная настройка: chrome://settings/content/camera — сайт не должен быть в списке «Запрещено».'
+  },
+  notfound: {
+    title: () => 'Камера не найдена',
+    text: () => 'Браузер не видит ни одной камеры.',
+    dl: false, cmd: false,
+    steps: () => [
+      'Проверьте, подключена ли камера и не закрыта ли шторкой.',
+      'На ноутбуке проверьте клавишу включения камеры (часто Fn + F-клавиша).',
+      'Проверьте доступ к камере в настройках конфиденциальности системы.'
+    ],
+    note: () => null
+  },
+  busy: {
+    title: () => 'Камера занята другой программой',
+    text: () => 'Камеру сейчас использует другое приложение.',
+    dl: false, cmd: false,
+    steps: () => [
+      'Закройте Zoom, Skype, Telegram, Discord и другие программы с камерой.',
+      'Нажмите «Проверить снова».'
+    ],
+    note: () => null
+  }
+};
+
+const phEl = document.getElementById('permHelp');
+function showCard(kind){
+  const d = HELP[kind];
+  if (!d) return;
+  document.getElementById('phTitle').textContent = d.title();
+  document.getElementById('phText').textContent  = d.text();
+  const steps = document.getElementById('phSteps');
+  steps.innerHTML = d.steps().map(s => `<li>${s}</li>`).join('');
+  document.getElementById('phDl').hidden  = !d.dl;
+  document.getElementById('phCmd').hidden = !d.cmd;
+  if (d.cmd){
+    document.getElementById('phCmdText').textContent =
+      isWin ? 'py -m http.server 8000' : 'python3 -m http.server 8000';
+  }
+  const link = document.getElementById('phLink');
+  if (d.dl){
+    link.hidden = false;
+    link.innerHTML = 'Уже запустили сервер? Откройте <a href="' + LOCAL_URL + '">' + LOCAL_URL + '</a>';
+  } else link.hidden = true;
+  const n = document.getElementById('phNote');
+  if (d.note()){ n.textContent = d.note(); n.hidden = false; } else n.hidden = true;
+  phEl.classList.add('show');
+}
+function hideCard(){ phEl.classList.remove('show'); }
+
+document.getElementById('dlBat').onclick = () => downloadLauncher('bat');
+document.getElementById('dlSh').onclick  = () => downloadLauncher('sh');
+document.getElementById('phCopy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById('phCmdText').textContent);
+    toast('Команда скопирована');
+  } catch(e){ toast('Скопируйте команду вручную'); }
+};
+
+function camProblemKind(){
+  if (!apiOk) return 'nolocal';
+  if (isFile && !onLocal) return 'nolocal';
+  if (insecure && !onLocal) return 'nolocal';
+  return null;
+}
+
+async function requestCamera(){
+  const attempts = [
+    { video:{ facingMode:'user', width:{ideal:1280}, height:{ideal:720} }, audio:false },
+    { video:true, audio:false }
+  ];
+  let err;
+  for (const c of attempts){
+    try { return await navigator.mediaDevices.getUserMedia(c); }
+    catch(e){
+      err = e;
+      if (e && (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError' || e.name === 'SecurityError')) break;
+    }
+  }
+  throw err;
+}
+
+function handleCamError(err){
+  startBtn.disabled = false;
+  const n = (err && err.name) || '';
+  bootMsg.classList.add('err');
+  if (n === 'NotAllowedError' || n === 'PermissionDeniedError' || n === 'SecurityError'){
+    if (isFile && !onLocal){
+      bootMsg.textContent = 'запрос не показан: chrome запрещает камеру на file://';
+      showCard('nolocal');
+    } else {
+      bootMsg.textContent = 'доступ не выдан — нажмите «Разрешить» в запросе у адресной строки';
+      showCard('denied');
+    }
+  } else if (n === 'NotFoundError' || n === 'DevicesNotFoundError'){
+    bootMsg.textContent = 'камера не найдена';
+    showCard('notfound');
+  } else if (n === 'NotReadableError' || n === 'TrackStartError'){
+    bootMsg.textContent = 'камера занята другим приложением';
+    showCard('busy');
+  } else {
+    bootMsg.textContent = 'не удалось открыть камеру' + (err && err.message ? ` (${err.message})` : '');
+    showCard(camProblemKind() || 'denied');
+  }
+}
+
+document.getElementById('phRetry').onclick = async () => {
+  if (!apiOk){ showCard('nolocal'); return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video:true });
+    s.getTracks().forEach(t => t.stop());
+    hideCard();
+    bootMsg.classList.remove('err');
+    bootMsg.textContent = 'камера разрешена — открываю…';
+    startBtn.click();
+  } catch(e){ handleCamError(e); }
+};
+
+(async function envCheck(){
+  const problem = camProblemKind();
+  if (problem){ showCard(problem); return; }
+  try {
+    const st = (await navigator.permissions.query({ name:'camera' })).state;
+    if (st === 'denied') showCard('denied');
+  } catch(e){}
+})();
+
+/* ============================================================
+   Старт: запрос камеры по клику + параллельная загрузка модели
+============================================================ */
+let trackerReady = false;
+
+initTracker()
+  .then(() => { trackerReady = true; if (!started) bootMsg.textContent = 'нейросеть готова — нажмите «Включить камеру»'; })
+  .catch(() => { bootMsg.textContent = 'не удалось загрузить модель — проверьте интернет'; bootMsg.classList.add('err'); });
+
+startBtn.onclick = async () => {
+  if (!apiOk){ showCard('nolocal'); startBtn.disabled = false; return; }
+  startBtn.disabled = true;
+  bootMsg.classList.remove('err');
+  bootMsg.textContent = 'запрос появится у адресной строки — нажмите «Разрешить»';
+
+  let stream;
+  try { stream = await requestCamera(); }
+  catch(err){ handleCamError(err); return; }
+
+  bootMsg.textContent = 'камера разрешена, догружаю нейросеть…';
+  try { if (!trackerReady){ await initTracker(); trackerReady = true; } }
+  catch(e){
+    stream.getTracks().forEach(t => t.stop());
+    bootMsg.textContent = 'модель не загрузилась — проверьте интернет';
+    bootMsg.classList.add('err');
+    startBtn.disabled = false;
+    return;
+  }
+
+  video.srcObject = stream;
+  try { await video.play(); } catch(e){}
+  started = true;
+  lastSeen = performance.now();
+  document.getElementById('boot').style.display = 'none';
+  toast('Камера включена — смотрите в объектив');
+
+  stream.getVideoTracks().forEach(tr => tr.addEventListener('ended', () => {
+    document.getElementById('boot').style.display = 'grid';
+    startBtn.disabled = false;
+    started = false;
+    showCard('busy');
+  }));
+};
+</script>
+</body>
+</html>

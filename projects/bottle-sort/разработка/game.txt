@@ -1,0 +1,1915 @@
+// ==========================================
+//   ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ / НАСТРОЙКИ
+// ==========================================
+let currentLang = 'ru', soundEnabled = true, musicEnabled = true, maxUnlockedLevel = 33;
+
+function loadSettings() {
+    try {
+        const s = JSON.parse(localStorage.getItem('waterSortSettings'));
+        if(s) {
+            currentLang = s.lang || 'ru'; soundEnabled = s.sound !== undefined ? s.sound : true;
+            musicEnabled = s.music !== undefined ? s.music : true; maxUnlockedLevel = s.maxLevel || 33;
+        }
+    } catch(e){}
+    maxUnlockedLevel = 33;
+    document.getElementById('sound-toggle').checked = soundEnabled;
+    document.getElementById('music-toggle').checked = musicEnabled;
+    updateLangUI();
+}
+
+function saveSettings() {
+    localStorage.setItem('waterSortSettings', JSON.stringify({
+        lang: currentLang, sound: soundEnabled, music: musicEnabled, maxLevel: maxUnlockedLevel
+    }));
+}
+
+function applyLanguage() {
+    const langData = TRANSLATIONS[currentLang];
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if(langData[key]) el.innerText = langData[key];
+    });
+}
+
+// ==========================================
+//   КАСТОМНЫЙ ВЫБОР ЯЗЫКА
+// ==========================================
+const langDropdown = document.getElementById('langDropdown');
+const langBtn = document.getElementById('langBtn');
+const langBtnLabel = document.getElementById('langBtnLabel');
+
+function updateLangUI() {
+    document.querySelectorAll('.lang-option').forEach(o => {
+        o.classList.toggle('active', o.dataset.value === currentLang);
+    });
+    langBtnLabel.textContent = currentLang === 'ru' ? 'Русский' : 'English';
+}
+
+langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langDropdown.classList.toggle('open');
+});
+
+document.querySelectorAll('.lang-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentLang = opt.dataset.value;
+        saveSettings();
+        applyLanguage();
+        updateLangUI();
+        langDropdown.classList.remove('open');
+        if (document.getElementById('level-select').classList.contains('menu-hidden') === false) openLevelSelect();
+    });
+});
+
+document.addEventListener('click', (e) => {
+    if (!langDropdown.contains(e.target)) {
+        langDropdown.classList.remove('open');
+    }
+});
+
+// ==========================================
+//   МУЗЫКА И ЗВУКИ
+// ==========================================
+let audioContext = null;
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') audioContext.resume();
+}
+
+const bgMusic = document.getElementById('bg-music');
+function updateMusic() {
+    if (musicEnabled) {
+        initAudio();
+        bgMusic.play().catch(e => {});
+    } else {
+        bgMusic.pause();
+    }
+}
+
+function playButtonSound() {
+    if (!soundEnabled) return;
+    try {
+        initAudio();
+        const btnSnd = document.getElementById('btn-sound');
+        btnSnd.currentTime = 0;
+        btnSnd.play().catch(e => {});
+    } catch (e) {}
+}
+
+function playPourSound() {
+    if (!soundEnabled) return;
+    try {
+        initAudio();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.35);
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.start(); osc.stop(audioContext.currentTime + 0.35);
+    } catch (e) {}
+}
+
+function playCapSound() {
+    if (!soundEnabled) return;
+    try {
+        initAudio();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(600, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.25);
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.start(); osc.stop(audioContext.currentTime + 0.25);
+    } catch (e) {}
+}
+
+document.addEventListener('click', (e) => {
+    if(e.target.closest('.menu-button') || e.target.closest('.back-button') || 
+       e.target.closest('.level-btn') || e.target.closest('.btn-control') ||
+       e.target.closest('#modal-next-btn') || e.target.closest('#timeout-retry-btn') ||
+       e.target.closest('#timeout-menu-btn') || e.target.closest('#no-moves-retry-btn') || 
+       e.target.closest('#no-moves-menu-btn') || e.target.closest('#timer-warning-start-btn') ||
+       e.target.closest('#hidden-warning-start-btn') || e.target.closest('#frozen-warning-start-btn') ||
+       e.target.closest('#bigbottle-warning-start-btn') ||
+       e.target.closest('#langBtn') || e.target.closest('.lang-option')) {
+        playButtonSound();
+    }
+});
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// ==========================================
+//   ФОНОВЫЕ ОБЪЕКТЫ (ЗВЁЗДЫ ГЛАВНОГО МЕНЮ)
+// ==========================================
+function createStar() {
+    const star = document.createElement('div');
+    star.className = 'bg-star';
+    const size = Math.random() * 3 + 1.5;
+    star.style.width = size + 'px'; star.style.height = size + 'px';
+    star.style.background = `radial-gradient(circle, #fff, rgba(255,255,255,0.2))`;
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 100 + '%';
+    star.style.animationDuration = (Math.random() * 15 + 10) + 's';
+    star.style.animationDelay = (Math.random() * 10) + 's';
+    return star;
+}
+function createShootingStar() {
+    const star = document.createElement('div');
+    star.className = 'shooting-star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 100 + '%';
+    star.style.animationDuration = (Math.random() * 2 + 3) + 's';
+    star.style.animationDelay = (Math.random() * 15) + 's';
+    return star;
+}
+function generateBackground() {
+    const bgContainer = document.getElementById('bg-container');
+    for(let i=0; i<50; i++) { bgContainer.appendChild(createStar()); }
+    for(let i=0; i<8; i++) { bgContainer.appendChild(createShootingStar()); }
+}
+
+// ==========================================
+//   ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ИГРЫ
+// ==========================================
+let currentLevelIdx = 0, bottles = [], selectedIdx = null, isWin = false, isAnimating = false;
+let isTutorial = false;
+let tutorialResolve = null;
+let demoDropInterval = null;
+const cappedBottles = new Set();
+let timerInterval = null, timerSeconds = 0;
+let pendingTimerStart = null;
+let warningDigitInterval = null;
+let hiddenDemoInterval = null;
+let hiddenDemoRunning = false;
+
+let bottleVisibility = [];
+let frozenBottles = [];
+let bigBottleIndex = -1;
+let bigBottleCapacity = 4;
+
+const totalLevels = LEVEL_DATA.length, gameBoard = document.getElementById('game-board');
+const levelNum = document.getElementById('level-num'), modal = document.getElementById('win-modal');
+const modalNextBtn = document.getElementById('modal-next-btn'), resetBtn = document.getElementById('reset-btn');
+const timeoutModal = document.getElementById('timeout-modal');
+const timeoutRetryBtn = document.getElementById('timeout-retry-btn');
+const timeoutMenuBtn = document.getElementById('timeout-menu-btn');
+const noMovesModal = document.getElementById('no-moves-modal');
+const noMovesRetryBtn = document.getElementById('no-moves-retry-btn');
+const noMovesMenuBtn = document.getElementById('no-moves-menu-btn');
+const timerWarningModal = document.getElementById('timer-warning-modal');
+const timerWarningStartBtn = document.getElementById('timer-warning-start-btn');
+const timerWarningDigits = document.getElementById('timer-warning-digits');
+const hiddenWarningModal = document.getElementById('hidden-warning-modal');
+const hiddenWarningStartBtn = document.getElementById('hidden-warning-start-btn');
+const timerDisplay = document.getElementById('timer-display');
+const timerText = document.getElementById('timer-text');
+const timerIcon = document.getElementById('timer-icon');
+const frozenWarningModal = document.getElementById('frozen-warning-modal');
+const frozenWarningStartBtn = document.getElementById('frozen-warning-start-btn');
+const frozenDemoContainer = document.getElementById('frozen-demo-container');
+const bigbottleWarningModal = document.getElementById('bigbottle-warning-modal');
+const bigbottleWarningStartBtn = document.getElementById('bigbottle-warning-start-btn');
+
+// ========== ТАЙМЕР ==========
+function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    timerDisplay.style.display = 'none';
+    timerIcon.style.animationPlayState = 'paused';
+}
+
+function updateTimerDisplay() {
+    const mins = Math.floor(Math.max(0, timerSeconds) / 60);
+    const secs = Math.floor(Math.max(0, timerSeconds) % 60);
+    timerText.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (timerSeconds <= 10) {
+        timerText.style.color = '#ff6666';
+        timerText.style.textShadow = '0 0 10px #ff0000';
+    } else if (timerSeconds <= 30) {
+        timerText.style.color = '#ffaa00';
+        timerText.style.textShadow = '0 0 8px #ffaa00';
+    } else {
+        timerText.style.color = '#fff';
+        timerText.style.textShadow = '0 0 8px #00d2ff';
+    }
+}
+
+function startTimer(seconds) {
+    stopTimer();
+    timerSeconds = seconds;
+    timerDisplay.style.display = 'inline-flex';
+    timerIcon.style.animationPlayState = 'running';
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timerIcon.style.animationPlayState = 'paused';
+            timeUp();
+        }
+    }, 1000);
+}
+
+function timeUp() {
+    isAnimating = true;
+    stopTimer();
+    timeoutModal.style.display = 'flex';
+}
+
+timeoutRetryBtn.addEventListener('click', () => {
+    timeoutModal.style.display = 'none';
+    isAnimating = false;
+    loadLevel(currentLevelIdx);
+});
+
+timeoutMenuBtn.addEventListener('click', () => {
+    timeoutModal.style.display = 'none';
+    isAnimating = false;
+    openMainMenu();
+});
+
+// ========== ПРЕДУПРЕЖДЕНИЕ О ТАЙМЕРЕ ==========
+function showTimerWarning(seconds, callback) {
+    applyLanguage();
+    timerWarningModal.style.display = 'flex';
+    let currentDigit = 10;
+    timerWarningDigits.textContent = currentDigit;
+    if (warningDigitInterval) clearInterval(warningDigitInterval);
+    warningDigitInterval = setInterval(() => {
+        currentDigit--;
+        if (currentDigit < 1) currentDigit = 10;
+        timerWarningDigits.textContent = currentDigit;
+    }, 1000);
+    pendingTimerStart = { seconds, callback };
+}
+
+timerWarningStartBtn.addEventListener('click', () => {
+    timerWarningModal.style.display = 'none';
+    if (warningDigitInterval) { clearInterval(warningDigitInterval); warningDigitInterval = null; }
+    if (pendingTimerStart) {
+        const { seconds, callback } = pendingTimerStart;
+        pendingTimerStart = null;
+        callback(seconds);
+    }
+});
+
+// ========== ПРЕДУПРЕЖДЕНИЕ О СКРЫТЫХ СЛОЯХ ==========
+function showHiddenWarning(callback) {
+    applyLanguage();
+    hiddenWarningModal.style.display = 'flex';
+    pendingTimerStart = { seconds: 0, callback };
+    startHiddenDemo();
+}
+
+function startHiddenDemo() {
+    if (hiddenDemoRunning) return;
+    hiddenDemoRunning = true;
+    const src = document.getElementById('hiddenSrc');
+    const dst = document.getElementById('hiddenDst');
+    const srcLayers = src.querySelectorAll('.hidden-demo-liquid');
+    srcLayers.forEach((layer, idx) => {
+        layer.style.display = '';
+        layer.classList.remove('question');
+        layer.style.backgroundColor = '';
+        if (idx === 0) { layer.style.backgroundColor = '#e74c3c'; }
+        else { layer.classList.add('question'); layer.style.backgroundColor = '#111'; }
+    });
+    const dstWrapper = dst.querySelector('.hidden-demo-liquid-wrapper');
+    dstWrapper.innerHTML = '';
+    src.classList.remove('lift', 'lower');
+    document.getElementById('hiddenClone').classList.remove('show', 'hide');
+    document.getElementById('hiddenDrop').classList.remove('fall');
+    setTimeout(() => doHiddenDemoStep(), 500);
+}
+
+function doHiddenDemoStep() {
+    const src = document.getElementById('hiddenSrc');
+    const clone = document.getElementById('hiddenClone');
+    const drop = document.getElementById('hiddenDrop');
+    const srcLayers = src.querySelectorAll('.hidden-demo-liquid');
+    const dstWrapper = document.querySelector('#hiddenDst .hidden-demo-liquid-wrapper');
+
+    src.classList.add('lift');
+    clone.classList.add('show');
+    drop.classList.add('fall');
+
+    setTimeout(() => {
+        drop.classList.remove('fall');
+        src.classList.remove('lift');
+        src.classList.add('lower');
+        clone.classList.remove('show');
+        clone.classList.add('hide');
+
+        const layerToRemove = srcLayers[0];
+        layerToRemove.style.display = 'none';
+
+        const nextLayer = srcLayers[1];
+        nextLayer.classList.remove('question');
+        nextLayer.style.backgroundColor = '#2ecc71';
+
+        const newLiquid = document.createElement('div');
+        newLiquid.className = 'hidden-demo-liquid';
+        newLiquid.style.backgroundColor = '#e74c3c';
+        newLiquid.style.bottom = '0%';
+        dstWrapper.appendChild(newLiquid);
+
+        setTimeout(() => {
+            src.classList.remove('lower');
+            clone.classList.remove('hide');
+            resetHiddenDemo();
+        }, 500);
+    }, 1000);
+}
+
+function resetHiddenDemo() {
+    const src = document.getElementById('hiddenSrc');
+    const dst = document.getElementById('hiddenDst');
+    const srcLayers = src.querySelectorAll('.hidden-demo-liquid');
+    srcLayers.forEach((layer, idx) => {
+        layer.style.display = '';
+        layer.classList.remove('question');
+        layer.style.backgroundColor = '';
+        if (idx === 0) { layer.style.backgroundColor = '#e74c3c'; }
+        else { layer.classList.add('question'); layer.style.backgroundColor = '#111'; }
+    });
+    const dstWrapper = dst.querySelector('.hidden-demo-liquid-wrapper');
+    dstWrapper.innerHTML = '';
+    src.classList.remove('lift', 'lower');
+    document.getElementById('hiddenClone').classList.remove('show', 'hide');
+    document.getElementById('hiddenDrop').classList.remove('fall');
+    setTimeout(() => doHiddenDemoStep(), 800);
+}
+
+hiddenWarningStartBtn.addEventListener('click', () => {
+    hiddenWarningModal.style.display = 'none';
+    if (hiddenDemoInterval) { clearInterval(hiddenDemoInterval); hiddenDemoInterval = null; }
+    hiddenDemoRunning = false;
+    if (pendingTimerStart) {
+        const { callback } = pendingTimerStart;
+        pendingTimerStart = null;
+        callback();
+    }
+});
+
+// ========== ПРЕДУПРЕЖДЕНИЕ О ЗАМОРОЖЕННОЙ БУТЫЛКЕ (28 уровень) ==========
+let frozenDemoInterval = null;
+let frozenDemoRunning = false;
+
+function showFrozenWarning(callback) {
+    applyLanguage();
+    frozenWarningModal.style.display = 'flex';
+    buildFrozenDemo();
+    startFrozenDemoLoop();
+    pendingTimerStart = { seconds: 0, callback };
+}
+
+function getIceCubeSVG() {
+    return `
+        <defs>
+            <radialGradient id="cubeGradient" cx="50%" cy="50%" r="60%" fx="30%" fy="30%">
+                <stop offset="0%" stop-color="#1c8fc3" />
+                <stop offset="40%" stop-color="#147bb3" />
+                <stop offset="100%" stop-color="#2ea3d9" />
+            </radialGradient>
+            <linearGradient id="shineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+        <path d="M 15 20 L 18 17 L 22 19 L 82 17 L 85 19 L 90 25 L 91 150 L 88 155 L 85 158 L 12 157 L 8 152 L 7 148 L 8 25 L 11 22 Z" fill="url(#cubeGradient)" opacity="0.5" />
+        <path d="M 15 20 L 18 17 L 22 19 L 82 17 L 85 19 L 90 25 L 91 150 L 88 155 L 85 158 L 12 157 L 8 152 L 7 148 L 8 25 L 11 22 Z" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>
+        <g>
+            <path d="M 10 25 C 15 10, 25 12, 35 18 C 45 10, 55 10, 65 18 C 75 12, 85 15, 90 25 L 90 32 C 82 28, 70 35, 60 28 C 50 35, 40 28, 30 35 C 20 28, 12 32, 8 32 Z" fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+            <path d="M 20 25 C 25 18, 35 20, 45 25 C 35 28, 25 25, 20 25 Z" fill="#aaddff" opacity="0.6"/>
+            <path d="M 60 25 C 65 18, 75 20, 80 25 C 70 28, 60 25, 60 25 Z" fill="#88ccff" opacity="0.5"/>
+            <path d="M 40 20 C 45 15, 55 15, 60 20 C 50 22, 40 20, 40 20 Z" fill="#ffffff" opacity="0.8"/>
+        </g>
+        <g>
+            <path d="M 10 156 L 15 175 L 20 156 L 25 180 L 30 156 L 38 170 L 45 156 L 52 182 L 60 156 L 68 172 L 75 156 L 82 180 L 88 156 Z" fill="#aee6ff" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M 15 156 L 18 165 L 25 156 Z" fill="#7bc4e8" opacity="0.6"/>
+            <path d="M 45 156 L 48 168 L 55 156 Z" fill="#7bc4e8" opacity="0.6"/>
+            <path d="M 75 156 L 78 168 L 85 156 Z" fill="#7bc4e8" opacity="0.6"/>
+        </g>
+        <g>
+            <path d="M 25 40 L 40 40 L 55 100 L 40 140 L 25 140 Z" fill="url(#shineGradient)" />
+            <ellipse cx="45" cy="50" rx="12" ry="20" fill="#ffffff" opacity="0.15" transform="rotate(-15 45 50)" filter="blur(2px)"/>
+            <path d="M 85 40 L 91 40 L 91 140 L 85 140 Z" fill="#0b4b73" opacity="0.25" />
+            <path d="M 7 40 L 10 40 L 10 140 L 7 140 Z" fill="#0b4b73" opacity="0.3" />
+        </g>
+        <g fill="none" stroke="#ffffff" stroke-linejoin="round">
+            <path d="M 90 60 L 70 70 L 65 85" stroke-width="1.5" opacity="0.3"/>
+            <path d="M 8 100 L 25 110 L 30 125" stroke-width="1.5" opacity="0.25"/>
+            <path d="M 10 130 L 25 145 L 40 140" stroke-width="2" opacity="0.4"/>
+            <path d="M 85 90 L 60 100 L 55 115" stroke-width="1.5" opacity="0.35"/>
+            <path d="M 25 45 L 40 65 L 35 85 L 50 110" stroke-width="2" opacity="0.8"/>
+            <path d="M 70 35 L 55 60 L 65 80 L 50 100 L 55 125" stroke-width="1.8" opacity="0.7"/>
+            <path d="M 35 135 L 50 145 L 65 140" stroke-width="1.5" opacity="0.6"/>
+            <path d="M 75 85 L 60 95 L 65 110" stroke-width="1.5" opacity="0.5"/>
+            <path d="M 40 65 L 55 70 L 50 85" stroke-width="1" opacity="0.5"/>
+            <path d="M 65 60 L 75 70 L 70 85" stroke-width="1" opacity="0.4"/>
+            <path d="M 30 100 L 40 95 L 45 85" stroke-width="1" opacity="0.6"/>
+            <path d="M 25 60 L 30 70 L 20 75" stroke-width="1" opacity="0.35"/>
+        </g>
+        <g fill="#ffffff" opacity="0.4">
+            <circle cx="20" cy="50" r="1.5" />
+            <circle cx="75" cy="45" r="1" />
+            <circle cx="30" cy="100" r="1.8" />
+            <circle cx="80" cy="110" r="1.2" />
+            <circle cx="50" cy="135" r="1" />
+            <circle cx="15" cy="90" r="1.5" />
+            <circle cx="70" cy="130" r="1" />
+        </g>
+    `;
+}
+
+function buildFrozenDemo() {
+    frozenDemoContainer.innerHTML = '';
+    const bottleEl = document.createElement('div');
+    bottleEl.className = 'bottle locked-bottle';
+    bottleEl.style.width = '100%';
+    bottleEl.style.height = '100%';
+    bottleEl.style.position = 'relative';
+    bottleEl.style.margin = '0 auto';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'locked-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.filter = 'drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8))';
+
+    const bottleInside = document.createElement('div');
+    bottleInside.className = 'bottle-inside';
+    bottleInside.style.position = 'absolute';
+    bottleInside.style.width = '66.7%';
+    bottleInside.style.height = '72.2%';
+    bottleInside.style.left = '16.7%';
+    bottleInside.style.top = '8.3%';
+    bottleInside.style.zIndex = '1';
+
+    const bottleBody = document.createElement('div');
+    bottleBody.className = 'bottle-body';
+    bottleBody.style.width = '100%';
+    bottleBody.style.height = '100%';
+    bottleBody.style.position = 'relative';
+    bottleBody.style.clipPath = 'url(#bottle-clip)';
+    bottleBody.style.background = 'rgba(255, 255, 255, 0.05)';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'liquid-wrapper';
+    wrapper.style.position = 'absolute';
+    wrapper.style.bottom = '0';
+    wrapper.style.left = '0';
+    wrapper.style.width = '100%';
+    wrapper.style.height = '80%';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.pointerEvents = 'none';
+
+    const demoColors = ['R','G','B','Y'];
+    demoColors.forEach((color, i) => {
+        const liquid = document.createElement('div');
+        liquid.className = 'liquid';
+        liquid.style.position = 'absolute';
+        liquid.style.width = '100%';
+        liquid.style.height = '25%';
+        liquid.style.bottom = (i * 25) + '%';
+        liquid.style.backgroundColor = COLORS[color];
+        liquid.style.pointerEvents = 'none';
+        wrapper.appendChild(liquid);
+    });
+
+    bottleBody.appendChild(wrapper);
+
+    const shine = document.createElement('div');
+    shine.className = 'bottle-shine';
+    shine.style.position = 'absolute';
+    shine.style.top = '15%';
+    shine.style.left = '6px';
+    shine.style.width = '20%';
+    shine.style.height = '60%';
+    shine.style.background = 'linear-gradient(90deg, rgba(255,255,255,0.4), transparent)';
+    shine.style.borderRadius = '50px';
+    shine.style.filter = 'blur(2px)';
+    shine.style.zIndex = '3';
+    shine.style.pointerEvents = 'none';
+    bottleBody.appendChild(shine);
+    bottleInside.appendChild(bottleBody);
+
+    const contourSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    contourSvg.setAttribute('width', '100%');
+    contourSvg.setAttribute('height', '100%');
+    contourSvg.setAttribute('viewBox', '0 0 60 130');
+    contourSvg.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:4;';
+    const contourPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    contourPath.setAttribute('d', 'M 16.8 6.5 L 43.2 6.5 L 43.2 32.5 C 51 32.5, 60 54.6, 60 84.5 L 60 117 C 60 130, 57 130, 51 130 L 9 130 C 3 130, 0 130, 0 117 L 0 84.5 C 0 54.6, 9 32.5, 16.8 32.5 Z');
+    contourPath.setAttribute('fill', 'none');
+    contourPath.setAttribute('stroke', '#ffffff');
+    contourPath.setAttribute('stroke-width', '2');
+    contourPath.setAttribute('filter', 'drop-shadow(0 0 4px rgba(255,255,255,0.8))');
+    contourSvg.appendChild(contourPath);
+    bottleInside.appendChild(contourSvg);
+
+    overlay.appendChild(bottleInside);
+
+    const iceSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    iceSvg.setAttribute('class', 'ice-cube');
+    iceSvg.setAttribute('viewBox', '0 0 100 180');
+    iceSvg.setAttribute('preserveAspectRatio', 'none');
+    iceSvg.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:2;';
+    iceSvg.innerHTML = getIceCubeSVG();
+    overlay.appendChild(iceSvg);
+
+    const frostText = document.createElement('div');
+    frostText.className = 'frost-text';
+    frostText.textContent = '❄️';
+    frostText.style.cssText = 'position:absolute; top:38%; left:50%; transform:translate(-50%,-50%); z-index:10; font-size:2.2rem; color:#ffffff; text-shadow:0 0 20px #88ddff, 0 0 40px #00aaff; font-weight:bold; pointer-events:none; animation:pulseGlow 2s ease-in-out infinite; transition:opacity 0.5s ease;';
+    overlay.appendChild(frostText);
+
+    const counter = document.createElement('div');
+    counter.className = 'counter';
+    counter.textContent = '0/1';
+    counter.style.cssText = 'position:absolute; bottom:25%; left:50%; transform:translateX(-50%); z-index:10; font-size:0.9rem; font-weight:bold; color:#ffffff; background:rgba(0,0,0,0.5); padding:4px 10px; border-radius:16px; backdrop-filter:blur(2px); border:1px solid rgba(255,255,255,0.4); pointer-events:none; transition:opacity 0.5s ease;';
+    overlay.appendChild(counter);
+
+    bottleEl.appendChild(overlay);
+    frozenDemoContainer.appendChild(bottleEl);
+}
+
+async function startFrozenDemoLoop() {
+    if (frozenDemoRunning) return;
+    frozenDemoRunning = true;
+    while (frozenDemoRunning) {
+        await doFrozenDemoCycle();
+    }
+}
+
+async function doFrozenDemoCycle() {
+    if (!frozenDemoRunning) return;
+    const overlay = frozenDemoContainer.querySelector('.locked-overlay');
+    if (!overlay) return;
+
+    await resetFrozenDemo(overlay);
+    await sleep(2000);
+    if (!frozenDemoRunning) return;
+
+    const counter = overlay.querySelector('.counter');
+    if (counter) { counter.textContent = '1/1'; }
+
+    await sleep(600);
+    if (!frozenDemoRunning) return;
+
+    const frostText = overlay.querySelector('.frost-text');
+    const counter2 = overlay.querySelector('.counter');
+    if (frostText) frostText.classList.add('fade-out');
+    if (counter2) counter2.classList.add('fade-out');
+
+    await sleep(400);
+    if (!frozenDemoRunning) return;
+
+    await animateFrozenDemo(overlay);
+    await sleep(1500);
+    if (!frozenDemoRunning) return;
+}
+
+function resetFrozenDemo(overlay) {
+    return new Promise((resolve) => {
+        const fragments = overlay.querySelectorAll('.ice-fragment, .ice-particle, .icicle');
+        fragments.forEach(el => el.remove());
+        const frostText = overlay.querySelector('.frost-text');
+        const counter = overlay.querySelector('.counter');
+        if (frostText) {
+            frostText.classList.remove('fade-out');
+            frostText.style.opacity = '1';
+            frostText.style.animation = 'pulseGlow 2s ease-in-out infinite';
+        }
+        if (counter) {
+            counter.classList.remove('fade-out');
+            counter.style.opacity = '1';
+            counter.textContent = '0/1';
+        }
+        let iceSvg = overlay.querySelector('.ice-cube');
+        if (!iceSvg) {
+            const newIce = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            newIce.setAttribute('class', 'ice-cube');
+            newIce.setAttribute('viewBox', '0 0 100 180');
+            newIce.setAttribute('preserveAspectRatio', 'none');
+            newIce.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:2;';
+            newIce.innerHTML = getIceCubeSVG();
+            overlay.appendChild(newIce);
+        }
+        resolve();
+    });
+}
+
+async function animateFrozenDemo(overlay) {
+    const iceSvg = overlay.querySelector('.ice-cube');
+    if (!iceSvg) return;
+
+    const iciclesGroup = iceSvg.querySelector('g:last-of-type');
+    let iciclePaths = [];
+    if (iciclesGroup) {
+        iciclesGroup.querySelectorAll('path').forEach(path => {
+            iciclePaths.push(path.getAttribute('d'));
+        });
+    }
+
+    iceSvg.remove();
+
+    const fragmentContainer = document.createElement('div');
+    fragmentContainer.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:20;';
+    overlay.appendChild(fragmentContainer);
+
+    const fragments = [
+        { clip: 'inset(0 50% 50% 0)', anim: 'fragmentFly1 0.8s ease-out forwards' },
+        { clip: 'inset(0 0 50% 50%)', anim: 'fragmentFly2 0.8s ease-out forwards' },
+        { clip: 'inset(50% 50% 0 0)', anim: 'fragmentFly3 0.8s ease-out forwards' },
+        { clip: 'inset(50% 0 0 50%)', anim: 'fragmentFly4 0.8s ease-out forwards' }
+    ];
+
+    const cloneSvgBase = iceSvg.cloneNode(true);
+    const cloneIcicles = cloneSvgBase.querySelector('g:last-of-type');
+    if (cloneIcicles) cloneIcicles.remove();
+
+    fragments.forEach((frag) => {
+        const div = document.createElement('div');
+        div.className = 'ice-fragment';
+        div.style.cssText = `position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:20; clip-path:${frag.clip}; animation:${frag.anim};`;
+        const cloneSvg = cloneSvgBase.cloneNode(true);
+        div.appendChild(cloneSvg);
+        fragmentContainer.appendChild(div);
+    });
+
+    let icicleContainer = null;
+    if (iciclePaths.length > 0) {
+        icicleContainer = document.createElement('div');
+        icicleContainer.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:22;';
+        overlay.appendChild(icicleContainer);
+
+        const fallAnimations = ['icicleFall1', 'icicleFall2', 'icicleFall3', 'icicleFall4', 'icicleFall5'];
+        iciclePaths.forEach((d, i) => {
+            const div = document.createElement('div');
+            div.className = 'icicle';
+            div.style.cssText = `position:absolute; pointer-events:none; z-index:22; animation:${fallAnimations[i % fallAnimations.length]} 0.9s ease-out ${i * 0.1}s forwards; transform-origin:bottom center;`;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 100 180');
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.style.cssText = 'width:100%; height:100%;';
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('fill', '#aee6ff');
+            path.setAttribute('stroke', '#ffffff');
+            path.setAttribute('stroke-width', '1.5');
+            svg.appendChild(path);
+            div.appendChild(svg);
+            icicleContainer.appendChild(div);
+        });
+    }
+
+    const particleContainer = document.createElement('div');
+    particleContainer.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:25;';
+    overlay.appendChild(particleContainer);
+
+    const particleCount = 40;
+    for (let i = 0; i < particleCount; i++) {
+        const p = document.createElement('div');
+        p.className = 'ice-particle';
+        const size = 3 + Math.random() * 6;
+        p.style.cssText = `position:absolute; border-radius:50%; background:radial-gradient(circle, #ffffff, #aaddff); pointer-events:none; z-index:25; width:${size}px; height:${size}px; left:${Math.random() * 90 + 5}%; top:${Math.random() * 80 + 10}%;`;
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = 40 + Math.random() * 80;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance - 20;
+        const duration = 0.6 + Math.random() * 0.5;
+        p.style.animation = `particleFly ${duration}s ease-out ${Math.random() * 0.2}s forwards`;
+        p.style.setProperty('--dx', dx + 'px');
+        p.style.setProperty('--dy', dy + 'px');
+        particleContainer.appendChild(p);
+    }
+
+    await sleep(1200);
+
+    if (fragmentContainer) fragmentContainer.remove();
+    if (icicleContainer) icicleContainer.remove();
+    if (particleContainer) particleContainer.remove();
+}
+
+function stopFrozenDemo() {
+    frozenDemoRunning = false;
+    if (frozenDemoInterval) {
+        clearTimeout(frozenDemoInterval);
+        frozenDemoInterval = null;
+    }
+    if (frozenDemoContainer) {
+        frozenDemoContainer.innerHTML = '';
+    }
+}
+
+frozenWarningStartBtn.addEventListener('click', () => {
+    frozenWarningModal.style.display = 'none';
+    stopFrozenDemo();
+    if (pendingTimerStart) {
+        const { callback } = pendingTimerStart;
+        pendingTimerStart = null;
+        callback();
+    }
+});
+
+// ========== ПРЕДУПРЕЖДЕНИЕ О БОЛЬШОЙ БУТЫЛКЕ (33 уровень) ==========
+let bigDemoRunning = false;
+
+function showBigBottleWarning(callback) {
+    applyLanguage();
+    bigbottleWarningModal.style.display = 'flex';
+    buildBigDemoAll();
+    bigDemoRunning = true;
+    runBigDemoLoop();
+    pendingTimerStart = { seconds: 0, callback };
+}
+
+function buildBigDemoSmall() {
+    const smallLiq = document.getElementById('bigDemoSmallLiq');
+    smallLiq.innerHTML = '';
+    [['Y', 0], ['R', 1], ['R', 2]].forEach(([c, i]) => {
+        const l = document.createElement('div');
+        l.className = 'bigdemo-small-layer';
+        l.style.height = '25%';
+        l.style.bottom = (i * 25) + '%';
+        l.style.backgroundColor = COLORS[c];
+        smallLiq.appendChild(l);
+    });
+}
+
+function addBigDemoTallLayer(silent) {
+    const tallLiq = document.getElementById('bigDemoTallLiq');
+    const count = tallLiq.children.length;
+    if (count >= 8) return;
+    const l = document.createElement('div');
+    l.className = 'bigdemo-tall-layer' + (silent ? '' : ' new');
+    l.style.bottom = (count * 12.5) + '%';
+    tallLiq.appendChild(l);
+    if (!silent) {
+        document.getElementById('bigDemoCounter').textContent = (count + 1) + '/8';
+    }
+}
+
+function buildBigDemoAll() {
+    buildBigDemoSmall();
+    const tallLiq = document.getElementById('bigDemoTallLiq');
+    tallLiq.innerHTML = '';
+    for (let i = 0; i < 2; i++) addBigDemoTallLayer(true);
+    document.getElementById('bigDemoCounter').textContent = '2/8';
+    document.getElementById('bigDemoSmall').classList.remove('pour');
+    document.getElementById('bigDemoTall').classList.remove('full');
+}
+
+async function runBigDemoLoop() {
+    const scene = document.querySelector('.bigdemo-scene');
+    const smallWrap = document.getElementById('bigDemoSmall');
+    while (bigDemoRunning) {
+        for (let k = 0; k < 2; k++) {
+            smallWrap.classList.add('pour');
+            await sleep(620); if (!bigDemoRunning) return;
+            const drop = document.createElement('div');
+            drop.className = 'bigdemo-drop fall';
+            drop.innerHTML = '<div class="bigdemo-drop-inner"></div>';
+            scene.appendChild(drop);
+            await sleep(420); if (!bigDemoRunning) { drop.remove(); return; }
+            addBigDemoTallLayer(false);
+            const layers = document.querySelectorAll('#bigDemoSmallLiq .bigdemo-small-layer');
+            if (layers.length > 1) layers[layers.length - 1].remove();
+            await sleep(280); if (!bigDemoRunning) { drop.remove(); return; }
+            smallWrap.classList.remove('pour');
+            drop.remove();
+            await sleep(720); if (!bigDemoRunning) return;
+        }
+        const tallWrap = document.getElementById('bigDemoTall');
+        if (document.getElementById('bigDemoTallLiq').children.length >= 8) {
+            tallWrap.classList.add('full');
+            document.getElementById('bigDemoCounter').textContent = '8/8 ✓';
+            await sleep(1600); if (!bigDemoRunning) return;
+            tallWrap.classList.remove('full');
+            const tallLiq = document.getElementById('bigDemoTallLiq');
+            tallLiq.innerHTML = '';
+            for (let i = 0; i < 2; i++) addBigDemoTallLayer(true);
+            document.getElementById('bigDemoCounter').textContent = '2/8';
+            await sleep(400); if (!bigDemoRunning) return;
+        }
+        buildBigDemoSmall();
+        await sleep(350); if (!bigDemoRunning) return;
+    }
+}
+
+bigbottleWarningStartBtn.addEventListener('click', () => {
+    bigbottleWarningModal.style.display = 'none';
+    bigDemoRunning = false;
+    if (pendingTimerStart) {
+        const { callback } = pendingTimerStart;
+        pendingTimerStart = null;
+        callback();
+    }
+});
+
+// ========== ЗАВЕРШЕНИЕ БУТЫЛКИ ==========
+function onBottleCompleted(index) {
+    const frozen = frozenBottles.find(f => f.index === index);
+    if (frozen && !frozen.unlocked) return;
+
+    for (let f of frozenBottles) {
+        if (f.unlocked) continue;
+        f.progress++;
+        const bottleEl = document.querySelectorAll('.bottle')[f.index];
+        if (bottleEl) {
+            const counter = bottleEl.querySelector('.counter');
+            if (counter) { counter.textContent = `${f.progress}/${f.required}`; }
+        }
+        if (f.progress >= f.required) { unlockFrozenBottle(f.index); }
+    }
+}
+
+// ========== РАЗМОРОЗКА БУТЫЛКИ ==========
+function unlockFrozenBottle(index) {
+    const frozen = frozenBottles.find(f => f.index === index);
+    if (!frozen || frozen.unlocked || frozen.animating) return;
+    frozen.animating = true;
+    isAnimating = true;
+
+    const bottleEl = document.querySelectorAll('.bottle')[index];
+    if (!bottleEl) return;
+
+    const overlay = bottleEl.querySelector('.locked-overlay');
+    if (!overlay) return;
+
+    const frostText = overlay.querySelector('.frost-text');
+    const counter = overlay.querySelector('.counter');
+    if (frostText) frostText.classList.add('fade-out');
+    if (counter) counter.classList.add('fade-out');
+
+    setTimeout(() => {
+        const iceSvg = overlay.querySelector('.ice-cube');
+        if (!iceSvg) {
+            overlay.remove();
+            frozen.unlocked = true;
+            frozen.animating = false;
+            isAnimating = false;
+            render();
+            return;
+        }
+
+        const iciclesGroup = iceSvg.querySelector('g:last-of-type');
+        let iciclePaths = [];
+        if (iciclesGroup) {
+            iciclesGroup.querySelectorAll('path').forEach(path => {
+                iciclePaths.push(path.getAttribute('d'));
+            });
+        }
+
+        iceSvg.remove();
+
+        const fragmentContainer = document.createElement('div');
+        fragmentContainer.style.position = 'absolute';
+        fragmentContainer.style.top = '0';
+        fragmentContainer.style.left = '0';
+        fragmentContainer.style.width = '100%';
+        fragmentContainer.style.height = '100%';
+        fragmentContainer.style.pointerEvents = 'none';
+        fragmentContainer.style.zIndex = '20';
+        overlay.appendChild(fragmentContainer);
+
+        const fragments = [
+            { clip: 'inset(0 50% 50% 0)', anim: 'fragmentFly1 0.8s ease-out forwards' },
+            { clip: 'inset(0 0 50% 50%)', anim: 'fragmentFly2 0.8s ease-out forwards' },
+            { clip: 'inset(50% 50% 0 0)', anim: 'fragmentFly3 0.8s ease-out forwards' },
+            { clip: 'inset(50% 0 0 50%)', anim: 'fragmentFly4 0.8s ease-out forwards' }
+        ];
+
+        fragments.forEach((frag) => {
+            const div = document.createElement('div');
+            div.className = 'ice-fragment';
+            div.style.clipPath = frag.clip;
+            div.style.animation = frag.anim;
+            const cloneSvg = iceSvg.cloneNode(true);
+            const cloneIcicles = cloneSvg.querySelector('g:last-of-type');
+            if (cloneIcicles) cloneIcicles.remove();
+            div.appendChild(cloneSvg);
+            fragmentContainer.appendChild(div);
+        });
+
+        let icicleContainer = null;
+        if (iciclePaths.length > 0) {
+            icicleContainer = document.createElement('div');
+            icicleContainer.style.position = 'absolute';
+            icicleContainer.style.top = '0';
+            icicleContainer.style.left = '0';
+            icicleContainer.style.width = '100%';
+            icicleContainer.style.height = '100%';
+            icicleContainer.style.pointerEvents = 'none';
+            icicleContainer.style.zIndex = '22';
+            overlay.appendChild(icicleContainer);
+
+            const fallAnimations = ['icicleFall1', 'icicleFall2', 'icicleFall3', 'icicleFall4', 'icicleFall5'];
+            iciclePaths.forEach((d, i) => {
+                const div = document.createElement('div');
+                div.className = 'icicle';
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('viewBox', '0 0 100 180');
+                svg.setAttribute('preserveAspectRatio', 'none');
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', '#aee6ff');
+                path.setAttribute('stroke', '#ffffff');
+                path.setAttribute('stroke-width', '1.5');
+                svg.appendChild(path);
+                div.appendChild(svg);
+                const animIndex = i % fallAnimations.length;
+                div.style.animation = `${fallAnimations[animIndex]} 0.9s ease-out ${i * 0.1}s forwards`;
+                div.style.transformOrigin = 'bottom center';
+                icicleContainer.appendChild(div);
+            });
+        }
+
+        const particleCount = 40;
+        const particleContainer = document.createElement('div');
+        particleContainer.style.position = 'absolute';
+        particleContainer.style.top = '0';
+        particleContainer.style.left = '0';
+        particleContainer.style.width = '100%';
+        particleContainer.style.height = '100%';
+        particleContainer.style.pointerEvents = 'none';
+        particleContainer.style.zIndex = '25';
+        overlay.appendChild(particleContainer);
+
+        for (let i = 0; i < particleCount; i++) {
+            const p = document.createElement('div');
+            p.className = 'ice-particle';
+            const size = 3 + Math.random() * 6;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = (Math.random() * 90 + 5) + '%';
+            p.style.top = (Math.random() * 80 + 10) + '%';
+            const angle = Math.random() * 2 * Math.PI;
+            const distance = 40 + Math.random() * 80;
+            const dx = Math.cos(angle) * distance;
+            const dy = Math.sin(angle) * distance - 20;
+            const duration = 0.6 + Math.random() * 0.5;
+            p.style.animation = `particleFly ${duration}s ease-out ${Math.random() * 0.2}s forwards`;
+            p.style.setProperty('--dx', dx + 'px');
+            p.style.setProperty('--dy', dy + 'px');
+            particleContainer.appendChild(p);
+        }
+
+        setTimeout(() => {
+            overlay.remove();
+            bottleEl.classList.remove('locked-bottle');
+            frozen.unlocked = true;
+            frozen.animating = false;
+            isAnimating = false;
+            render();
+        }, 1200);
+    }, 400);
+}
+
+// ========== ЗАГРУЗКА УРОВНЯ ==========
+function loadLevel(index) {
+    stopTimer();
+    timeoutModal.style.display = 'none';
+    noMovesModal.style.display = 'none';
+    timerWarningModal.style.display = 'none';
+    hiddenWarningModal.style.display = 'none';
+    frozenWarningModal.style.display = 'none';
+    bigbottleWarningModal.style.display = 'none';
+    bigDemoRunning = false;
+    stopFrozenDemo();
+    if (warningDigitInterval) { clearInterval(warningDigitInterval); warningDigitInterval = null; }
+    if (hiddenDemoInterval) { clearInterval(hiddenDemoInterval); hiddenDemoInterval = null; }
+    hiddenDemoRunning = false;
+    pendingTimerStart = null;
+    currentLevelIdx = index;
+    bottles = LEVEL_DATA[index].map(b => [...b]);
+    selectedIdx = null; isWin = false; isAnimating = false;
+    modal.style.display = 'none';
+    levelNum.innerText = index + 1;
+    cappedBottles.clear();
+    bottleVisibility = [];
+
+    if (index === 32) {
+        bigBottleIndex = LEVEL33.bigIndex;
+        bigBottleCapacity = LEVEL33.bigCapacity;
+    } else {
+        bigBottleIndex = -1;
+        bigBottleCapacity = 4;
+    }
+
+    frozenBottles = [];
+    const config = frozenConfig[index];
+    if (config) {
+        for (let c of config) {
+            frozenBottles.push({
+                index: c.index, required: c.required, progress: 0, unlocked: false, animating: false
+            });
+        }
+    }
+
+    const hiddenIndices = levelHiddenIndices[index] || [];
+    bottles.forEach((b, idx) => {
+        const vis = new Array(b.length).fill(true);
+        if (hiddenIndices.includes(idx)) {
+            for (let i = 0; i < b.length - 1; i++) { vis[i] = false; }
+        }
+        bottleVisibility.push(vis);
+    });
+
+    if (index in timerMap) {
+        if (index === 8) {
+            showTimerWarning(timerMap[index], (seconds) => { startTimer(seconds); });
+            timerDisplay.style.display = 'none';
+        } else {
+            startTimer(timerMap[index]);
+        }
+    } else {
+        timerDisplay.style.display = 'none';
+    }
+
+    if (index === 21) { showHiddenWarning(() => {}); }
+
+    if (index === 27) { 
+        showFrozenWarning(() => { render(); });
+    } else if (index === 32) {
+        showBigBottleWarning(() => { render(); });
+    } else {
+        if (index === 0) {
+            isTutorial = true;
+            document.getElementById('tutorial-ui').style.display = 'block';
+        } else {
+            isTutorial = false;
+            document.getElementById('tutorial-ui').style.display = 'none';
+        }
+        render();
+        if (isTutorial) { setTimeout(() => runTutorial(), 100); }
+    }
+}
+
+// ========== СОЗДАНИЕ ЭЛЕМЕНТА БУТЫЛКИ ==========
+function createBottleEl(idx) {
+    const bottleColors = bottles[idx];
+    const bottleEl = document.createElement('div');
+    bottleEl.className = 'bottle';
+    if (selectedIdx === idx) bottleEl.classList.add('selected');
+    if (idx === bigBottleIndex) bottleEl.classList.add('big-bottle');
+    bottleEl.dataset.index = idx;
+
+    const frozen = frozenBottles.find(f => f.index === idx && !f.unlocked);
+
+    if (frozen) {
+        bottleEl.classList.add('locked-bottle');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'locked-overlay';
+
+        const bottleInside = document.createElement('div');
+        bottleInside.className = 'bottle-inside';
+
+        const bottleBody = document.createElement('div');
+        bottleBody.className = 'bottle-body';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'liquid-wrapper';
+        for (let i = 0; i < bottleColors.length; i++) {
+            const liquid = document.createElement('div');
+            liquid.className = 'liquid';
+            liquid.style.backgroundColor = COLORS[bottleColors[i]];
+            liquid.style.bottom = (i * 25) + '%';
+            wrapper.appendChild(liquid);
+        }
+        bottleBody.appendChild(wrapper);
+
+        const shine = document.createElement('div');
+        shine.className = 'bottle-shine';
+        bottleBody.appendChild(shine);
+
+        bottleInside.appendChild(bottleBody);
+
+        const contourSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        contourSvg.setAttribute('width', '100%');
+        contourSvg.setAttribute('height', '100%');
+        contourSvg.setAttribute('viewBox', '0 0 60 130');
+        contourSvg.style.cssText = 'position:absolute; top:0; left:0; pointer-events:none; z-index:4;';
+        const contourPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        contourPath.setAttribute('d', 'M 16.8 6.5 L 43.2 6.5 L 43.2 32.5 C 51 32.5, 60 54.6, 60 84.5 L 60 117 C 60 130, 57 130, 51 130 L 9 130 C 3 130, 0 130, 0 117 L 0 84.5 C 0 54.6, 9 32.5, 16.8 32.5 Z');
+        contourPath.setAttribute('fill', 'none');
+        contourPath.setAttribute('stroke', '#ffffff');
+        contourPath.setAttribute('stroke-width', '2');
+        contourPath.setAttribute('filter', 'drop-shadow(0 0 4px rgba(255,255,255,0.8))');
+        contourSvg.appendChild(contourPath);
+        bottleInside.appendChild(contourSvg);
+
+        overlay.appendChild(bottleInside);
+
+        const iceSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        iceSvg.setAttribute('class', 'ice-cube');
+        iceSvg.setAttribute('viewBox', '0 0 100 180');
+        iceSvg.setAttribute('preserveAspectRatio', 'none');
+        iceSvg.innerHTML = getIceCubeSVG();
+        overlay.appendChild(iceSvg);
+
+        const frostText = document.createElement('div');
+        frostText.className = 'frost-text';
+        frostText.textContent = '❄️';
+        overlay.appendChild(frostText);
+
+        const counter = document.createElement('div');
+        counter.className = 'counter';
+        counter.textContent = `${frozen.progress}/${frozen.required}`;
+        overlay.appendChild(counter);
+
+        bottleEl.appendChild(overlay);
+    } else {
+        const container = document.createElement('div');
+        container.className = 'bottle-body-container';
+        bottleEl.appendChild(container);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'liquid-wrapper';
+        container.appendChild(wrapper);
+
+        const isBig = idx === bigBottleIndex;
+        const step = isBig ? 5 : 25;
+        for (let i = 0; i < bottleColors.length; i++) {
+            const liquid = document.createElement('div');
+            liquid.className = 'liquid';
+            liquid.style.height = step + '%';
+            if (bottleVisibility[idx] && !bottleVisibility[idx][i]) {
+                liquid.classList.add('hidden');
+            } else {
+                liquid.style.backgroundColor = COLORS[bottleColors[i]];
+            }
+            liquid.style.bottom = (i * step) + '%';
+            wrapper.appendChild(liquid);
+        }
+
+        if (cappedBottles.has(idx)) {
+            const cap = document.createElement('div');
+            cap.className = 'cap capped';
+            bottleEl.appendChild(cap);
+        }
+    }
+
+    bottleEl.addEventListener('click', () => handleBottleClick(parseInt(bottleEl.dataset.index)));
+    bottleEl.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        handleBottleClick(parseInt(bottleEl.dataset.index));
+    }, { passive: false });
+
+    return bottleEl;
+}
+
+function render() {
+    gameBoard.innerHTML = '';
+    const isSmall = (currentLevelIdx >= 18 && currentLevelIdx <= 20) || currentLevelIdx === 26 || currentLevelIdx === 30 || currentLevelIdx === 31 || currentLevelIdx === 32;
+    gameBoard.classList.toggle('small-bottles', isSmall);
+    const isLower = currentLevelIdx === 30 || currentLevelIdx === 31;
+    gameBoard.classList.toggle('board-lower', isLower);
+    gameBoard.classList.toggle('big-level', currentLevelIdx === 32);
+
+    if (currentLevelIdx === 32) {
+        const row = document.createElement('div');
+        row.className = 'big-level-row';
+        const groups = [[0, 1, 2], [3, 4, 5], [bigBottleIndex], [7, 8, 9], [10, 11, 12]];
+        groups.forEach(g => {
+            const col = document.createElement('div');
+            col.className = 'big-level-col';
+            g.forEach(i => col.appendChild(createBottleEl(i)));
+            row.appendChild(col);
+        });
+        gameBoard.appendChild(row);
+    } else {
+        for (let idx = 0; idx < bottles.length; idx++) {
+            gameBoard.appendChild(createBottleEl(idx));
+        }
+    }
+}
+
+function handleBottleClick(index) {
+    if (isTutorial) { if (tutorialResolve) { tutorialResolve(index); } return; }
+    const frozen = frozenBottles.find(f => f.index === index && !f.unlocked);
+    if (frozen) return;
+    if (cappedBottles.has(index)) return;
+    if (isWin || isAnimating) return;
+    if (index === bigBottleIndex) {
+        if (selectedIdx !== null && bottles[selectedIdx].length > 0) {
+            animatePour(selectedIdx, index);
+            selectedIdx = null;
+        }
+        return;
+    }
+    if (selectedIdx === index) { selectedIdx = null; render(); return; }
+    if (selectedIdx !== null && bottles[selectedIdx].length > 0) {
+        animatePour(selectedIdx, index);
+        selectedIdx = null; return;
+    }
+    if (bottles[index].length > 0) { selectedIdx = index; render(); }
+}
+
+function updateBottleDOM(el, data, visibility) {
+    const wrapper = el.querySelector('.liquid-wrapper');
+    if (!wrapper) return;
+    const isBig = el.classList.contains('big-bottle');
+    const step = isBig ? 5 : 25;
+    wrapper.innerHTML = '';
+    for (let i = 0; i < data.length; i++) {
+        const liquid = document.createElement('div');
+        liquid.className = 'liquid';
+        liquid.style.height = step + '%';
+        if (visibility && !visibility[i]) { liquid.classList.add('hidden'); }
+        else { liquid.style.backgroundColor = COLORS[data[i]]; }
+        liquid.style.bottom = (i * step) + '%';
+        wrapper.appendChild(liquid);
+    }
+}
+
+function spawnParticles(bottleEl) {
+    const rect = bottleEl.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height * 0.2;
+    const particleCount = 20;
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.8;
+        const distance = 30 + Math.random() * 35;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance - 15;
+        const size = 4 + Math.random() * 6;
+        const hue = 40 + Math.random() * 20;
+        const color = `hsl(${hue}, 100%, 65%)`;
+        particle.style.cssText = `
+            left: ${centerX}px; top: ${centerY}px; width: ${size}px; height: ${size}px;
+            background: ${color}; --dx: ${dx}px; --dy: ${dy}px;
+        `;
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 700);
+    }
+}
+
+async function animateCapClosing(index) {
+    const bottleEl = document.querySelectorAll('.bottle')[index];
+    if (!bottleEl || cappedBottles.has(index)) return;
+    isAnimating = true;
+    const oldCap = bottleEl.querySelector('.cap');
+    if (oldCap) oldCap.remove();
+    const cap = document.createElement('div');
+    cap.className = 'cap closing';
+    bottleEl.appendChild(cap);
+    playCapSound();
+    spawnParticles(bottleEl);
+    await sleep(500);
+    cap.classList.remove('closing');
+    cap.classList.add('capped');
+    cappedBottles.add(index);
+
+    onBottleCompleted(index);
+    isAnimating = false;
+}
+
+async function animatePour(fromIdx, toIdx) {
+    const srcData = bottles[fromIdx], dstData = bottles[toIdx];
+    const capDst = (toIdx === bigBottleIndex) ? bigBottleCapacity : 4;
+    if (srcData.length === 0 || dstData.length >= capDst) return;
+    const srcTopColor = srcData[srcData.length - 1];
+    if (dstData.length > 0 && dstData[dstData.length - 1] !== srcTopColor) return;
+    let countToMove = 0;
+    for (let i = srcData.length - 1; i >= 0; i--) { if (srcData[i] === srcTopColor) countToMove++; else break; }
+    const actualMove = Math.min(countToMove, capDst - dstData.length);
+    if (actualMove === 0) return;
+
+    playPourSound(); isAnimating = true;
+    const bottleEls = document.querySelectorAll('.bottle');
+    const srcEl = bottleEls[fromIdx], dstEl = bottleEls[toIdx];
+    srcEl.classList.remove('selected'); srcEl.classList.add('pouring'); dstEl.classList.add('receiving');
+    await sleep(250);
+    srcEl.style.opacity = '0';
+    await sleep(150);
+    const dstRect = dstEl.getBoundingClientRect(), srcRect = srcEl.getBoundingClientRect();
+    const clone = srcEl.cloneNode(true);
+    clone.classList.remove('pouring', 'selected');
+    if ((currentLevelIdx >= 18 && currentLevelIdx <= 20) || currentLevelIdx === 26 || currentLevelIdx === 30 || currentLevelIdx === 31 || currentLevelIdx === 32) {
+        const srcStyle = getComputedStyle(srcEl);
+        clone.style.width = srcStyle.width; clone.style.height = srcStyle.height;
+    }
+    clone.style.position = 'fixed';
+    clone.style.left = (dstRect.left + (dstRect.width - srcRect.width) / 2) + 'px';
+    clone.style.top = (dstRect.top - srcRect.height - 10) + 'px';
+    clone.style.transform = 'rotate(180deg) scale(0.9)';
+    clone.style.transformOrigin = 'center center';
+    clone.style.opacity = '0';
+    clone.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    clone.style.zIndex = '1000';
+    clone.style.pointerEvents = 'none';
+    document.body.appendChild(clone);
+    clone.offsetHeight;
+    clone.style.opacity = '1';
+    clone.style.transform = 'rotate(180deg) scale(1.15)';
+    await sleep(200);
+
+    const cloneRect = clone.querySelector('.bottle-body-container').getBoundingClientRect();
+    const dropSize = Math.min(36, Math.max(24, srcRect.width * 0.7));
+    const startX = cloneRect.left + (cloneRect.width / 2) - (dropSize/2);
+    const startY = cloneRect.bottom - 10;
+    const endX = dstRect.left + (dstRect.width / 2) - (dropSize/2);
+    const endY = dstRect.top + 15;
+    const streamWrapper = document.createElement('div');
+    streamWrapper.className = 'liquid-stream';
+    streamWrapper.style.width = dropSize + 'px'; streamWrapper.style.height = dropSize + 'px';
+    streamWrapper.style.left = startX + 'px'; streamWrapper.style.top = startY + 'px';
+    document.body.appendChild(streamWrapper);
+    const innerDrop = document.createElement('div');
+    innerDrop.style.width = '100%'; innerDrop.style.height = '100%';
+    innerDrop.style.backgroundColor = COLORS[srcTopColor];
+    innerDrop.style.borderRadius = '100% 0% 100% 100%';
+    innerDrop.style.transform = 'rotate(-45deg)';
+    innerDrop.style.position = 'relative';
+    const highlight = document.createElement('div');
+    highlight.style.position = 'absolute'; highlight.style.top = '30%'; highlight.style.left = '20%';
+    highlight.style.width = '25%'; highlight.style.height = '35%'; highlight.style.background = 'white';
+    highlight.style.borderRadius = '50%'; highlight.style.opacity = '0.7'; highlight.style.filter = 'blur(1px)';
+    highlight.style.transform = 'rotate(-30deg)';
+    innerDrop.appendChild(highlight);
+    streamWrapper.appendChild(innerDrop);
+    const deltaX = endX - startX, deltaY = endY - startY;
+    streamWrapper.animate([
+        { transform: 'translate(0px, 0px) scale(0.8)', opacity: 0.8 },
+        { transform: `translate(${deltaX * 0.5}px, ${deltaY * 0.5 - 15}px) scale(1.5)`, opacity: 1 },
+        { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.8)`, opacity: 0.6 }
+    ], { duration: 300, easing: 'cubic-bezier(0.42, 0.0, 0.58, 1)', fill: 'forwards' });
+    await sleep(320);
+    streamWrapper.remove(); clone.remove();
+
+    for (let i = 0; i < actualMove; i++) { dstData.push(srcData.pop()); }
+    const hiddenIndices = levelHiddenIndices[currentLevelIdx] || [];
+    if (srcData.length > 0) { if (hiddenIndices.includes(fromIdx)) { bottleVisibility[fromIdx][srcData.length - 1] = true; } }
+    for (let i = 0; i < actualMove; i++) { bottleVisibility[toIdx].push(true); }
+    bottleVisibility[fromIdx] = bottleVisibility[fromIdx].slice(0, srcData.length);
+    updateBottleDOM(srcEl, srcData, bottleVisibility[fromIdx]);
+    updateBottleDOM(dstEl, dstData, bottleVisibility[toIdx]);
+    const wrapper = dstEl.querySelector('.liquid-wrapper');
+    const liquids = wrapper.querySelectorAll('.liquid');
+    if (liquids.length > 0) {
+        const lastLiquid = liquids[liquids.length - 1];
+        lastLiquid.classList.add('ripple');
+        setTimeout(() => lastLiquid.classList.remove('ripple'), 500);
+    }
+    dstEl.classList.remove('receiving'); srcEl.style.opacity = '1'; srcEl.classList.remove('pouring');
+    await sleep(500);
+    isAnimating = false;
+    checkGameState();
+}
+
+// ========== ДЕМО-КАПЛИ ==========
+function createDemoDrop() {
+    const demoScene = document.querySelector('.demo-scene');
+    if (!demoScene) return;
+    const dropSize = 18;
+    const dropContainer = document.createElement('div');
+    dropContainer.style.position = 'absolute'; dropContainer.style.width = dropSize + 'px';
+    dropContainer.style.height = dropSize + 'px'; dropContainer.style.left = '125px';
+    dropContainer.style.top = '40px'; dropContainer.style.zIndex = '6';
+    demoScene.appendChild(dropContainer);
+    const innerDrop = document.createElement('div');
+    innerDrop.style.width = '100%'; innerDrop.style.height = '100%';
+    innerDrop.style.backgroundColor = '#e74c3c';
+    innerDrop.style.borderRadius = '100% 0% 100% 100%';
+    innerDrop.style.transform = 'rotate(-45deg)'; innerDrop.style.position = 'relative';
+    const highlight = document.createElement('div');
+    highlight.style.position = 'absolute'; highlight.style.top = '30%'; highlight.style.left = '20%';
+    highlight.style.width = '25%'; highlight.style.height = '35%'; highlight.style.background = 'white';
+    highlight.style.borderRadius = '50%'; highlight.style.opacity = '0.7';
+    highlight.style.filter = 'blur(1px)'; highlight.style.transform = 'rotate(-30deg)';
+    innerDrop.appendChild(highlight);
+    dropContainer.appendChild(innerDrop);
+    dropContainer.animate([
+        { transform: 'translateY(0) scale(0.8)', opacity: 0.8 },
+        { transform: 'translateY(50px) scale(1.2)', opacity: 1 },
+        { transform: 'translateY(50px) scale(0.8)', opacity: 0.6 }
+    ], { duration: 400, easing: 'cubic-bezier(0.42, 0.0, 0.58, 1)', fill: 'forwards' });
+    setTimeout(() => { if (dropContainer.parentNode) dropContainer.remove(); }, 400);
+}
+
+function startDemoDropLoop() {
+    const createWithDelay = () => {
+        createDemoDrop();
+        demoDropInterval = setTimeout(createWithDelay, 3000);
+    };
+    demoDropInterval = setTimeout(createWithDelay, 1500);
+}
+
+function stopDemoDropLoop() {
+    if (demoDropInterval) { clearTimeout(demoDropInterval); demoDropInterval = null; }
+}
+
+// ========== ОБУЧЕНИЕ ==========
+function waitForClickOnIndex(targetIdx) {
+    return new Promise((resolve) => {
+        tutorialResolve = (clickedIdx) => {
+            if (clickedIdx === targetIdx) { tutorialResolve = null; resolve(); }
+        };
+    });
+}
+
+function waitForPopupClose() {
+    return new Promise((resolve) => {
+        const btn = document.getElementById('tutorial-start-btn');
+        const closeHandler = () => { btn.removeEventListener('click', closeHandler); resolve(); };
+        btn.addEventListener('click', closeHandler);
+    });
+}
+
+async function runTutorial() {
+    const tutUI = document.getElementById('tutorial-ui');
+    const overlay = document.getElementById('tutorial-overlay');
+    const popup = document.getElementById('tutorial-popup');
+    const label = document.getElementById('tutorial-label');
+    const labelText = document.getElementById('tutorial-label-text');
+    applyLanguage();
+    tutUI.style.pointerEvents = 'auto';
+    popup.style.display = 'block'; overlay.style.display = 'block'; label.style.opacity = '0';
+    startDemoDropLoop();
+    await waitForPopupClose();
+    stopDemoDropLoop(); popup.style.display = 'none'; overlay.style.display = 'none'; tutUI.style.pointerEvents = 'none';
+
+    const moves = TUTORIAL_MOVES;
+    for (let i = 0; i < moves.length; i++) {
+        const [srcIdx, dstIdx] = moves[i];
+        const bottles = document.querySelectorAll('.bottle');
+        label.style.opacity = '1';
+        labelText.innerText = TRANSLATIONS[currentLang].tutorial_label_src;
+        bottles[srcIdx].classList.add('highlight-src');
+        await waitForClickOnIndex(srcIdx);
+        bottles[srcIdx].classList.remove('highlight-src');
+        labelText.innerText = TRANSLATIONS[currentLang].tutorial_label_dst;
+        bottles[dstIdx].classList.add('highlight-dst');
+        await waitForClickOnIndex(dstIdx);
+        bottles[dstIdx].classList.remove('highlight-dst');
+        label.style.opacity = '0';
+        await sleep(200);
+        await animatePour(srcIdx, dstIdx);
+    }
+    isTutorial = false; tutUI.style.display = 'none'; checkGameState();
+}
+
+// ========== ПРОВЕРКА ХОДОВ ==========
+function hasAvailableMoves() {
+    for (let i = 0; i < bottles.length; i++) {
+        if (i === bigBottleIndex) continue;
+        const src = bottles[i]; if (src.length === 0) continue;
+        if (cappedBottles.has(i)) continue;
+        const frozen = frozenBottles.find(f => f.index === i && !f.unlocked);
+        if (frozen) continue;
+        const topColor = src[src.length - 1];
+        for (let j = 0; j < bottles.length; j++) {
+            if (i === j) continue;
+            const dst = bottles[j];
+            const capJ = (j === bigBottleIndex) ? bigBottleCapacity : 4;
+            if (dst.length >= capJ) continue;
+            if (cappedBottles.has(j)) continue;
+            const frozenDst = frozenBottles.find(f => f.index === j && !f.unlocked);
+            if (frozenDst) continue;
+            if (dst.length === 0 || dst[dst.length - 1] === topColor) return true;
+        }
+    }
+    return false;
+}
+
+function checkGameState() {
+    if (isTutorial) return;
+    if (bigBottleIndex >= 0) {
+        const big = bottles[bigBottleIndex];
+        if (big.length >= bigBottleCapacity && big.length > 0 && big.every(color => color === big[0])) {
+            if (!cappedBottles.has(bigBottleIndex)) { animateCapClosing(bigBottleIndex); }
+            if (!isWin) {
+                isWin = true; stopTimer();
+                setTimeout(() => { modal.style.display = 'flex'; }, 700);
+            }
+            return;
+        }
+    }
+    let allCapped = true;
+    for (let i = 0; i < bottles.length; i++) {
+        if (i === bigBottleIndex) continue;
+        const cap = (i === bigBottleIndex) ? bigBottleCapacity : 4;
+        const b = bottles[i];
+        if (b.length === cap && b.length > 0 && b.every(color => color === b[0])) {
+            if (!cappedBottles.has(i)) { animateCapClosing(i); }
+        } else if (b.length > 0) { allCapped = false; }
+    }
+    if (allCapped && !isWin) {
+        isWin = true; stopTimer();
+        setTimeout(() => { modal.style.display = 'flex'; }, 400);
+        return;
+    }
+    if (!isWin && !hasAvailableMoves()) {
+        isAnimating = true; stopTimer();
+        noMovesModal.style.display = 'flex';
+    }
+}
+
+noMovesRetryBtn.addEventListener('click', () => {
+    noMovesModal.style.display = 'none'; isAnimating = false; loadLevel(currentLevelIdx);
+});
+noMovesMenuBtn.addEventListener('click', () => {
+    noMovesModal.style.display = 'none'; isAnimating = false; openMainMenu();
+});
+modalNextBtn.addEventListener('click', () => {
+    if (currentLevelIdx < totalLevels - 1) { loadLevel(currentLevelIdx + 1); modal.style.display = 'none'; }
+    else { modal.style.display = 'none'; openMainMenu(); }
+});
+resetBtn.addEventListener('click', () => { loadLevel(currentLevelIdx); });
+
+// ========== МЕНЮ ==========
+function showMenu(menuId) {
+    document.querySelectorAll('.menu-overlay').forEach(m => m.classList.add('menu-hidden'));
+    document.getElementById(menuId).classList.remove('menu-hidden');
+    document.getElementById('game-container').style.display = 'none';
+    stopTimer(); timeoutModal.style.display = 'none'; noMovesModal.style.display = 'none';
+    timerWarningModal.style.display = 'none'; hiddenWarningModal.style.display = 'none';
+    frozenWarningModal.style.display = 'none';
+    bigbottleWarningModal.style.display = 'none';
+    bigDemoRunning = false;
+    stopFrozenDemo();
+    langDropdown.classList.remove('open');
+    if (hiddenDemoInterval) { clearInterval(hiddenDemoInterval); hiddenDemoInterval = null; }
+    hiddenDemoRunning = false;
+    if (warningDigitInterval) { clearInterval(warningDigitInterval); warningDigitInterval = null; }
+    pendingTimerStart = null;
+}
+
+function openMainMenu() {
+    showMenu('main-menu'); applyLanguage();
+    if(musicEnabled) updateMusic();
+    const tutUI = document.getElementById('tutorial-ui');
+    const label = document.getElementById('tutorial-label');
+    tutUI.style.display = 'none'; label.style.opacity = '0';
+    isTutorial = false; tutorialResolve = null; stopDemoDropLoop(); stopTimer();
+}
+
+// ========== КОСМИЧЕСКАЯ КАРТА УРОВНЕЙ ==========
+function buildLevelMap() {
+    const map = document.getElementById('level-map');
+    const inner = document.getElementById('level-map-inner');
+    inner.innerHTML = '';
+    const N = totalLevels;
+    const stepY = 100;
+    const padTop = 70, padBottom = 90;
+    const H = padTop + padBottom + (N - 1) * stepY;
+    const W = Math.max(260, Math.min(320, map.clientWidth || 300));
+    inner.style.height = H + 'px';
+    inner.style.width = W + 'px';
+    const cx = W / 2;
+    const amp = W / 2 - 48;
+
+    const pos = [];
+    for (let i = 0; i < N; i++) {
+        const centerY = H - padBottom - i * stepY;
+        const centerX = cx + Math.round(amp * Math.sin(i * 0.83));
+        pos.push({ cx: centerX, cy: centerY });
+    }
+
+    const pathPoints = [];
+    const loopSegs = new Set([3, 9, 15, 21, 27]);
+    for (let s = 0; s < N - 1; s++) {
+        const a = pos[s], b = pos[s + 1];
+        if (loopSegs.has(s)) {
+            const mcx = (a.cx + b.cx) / 2, mcy = (a.cy + b.cy) / 2;
+            const r = 26;
+            const count = 30;
+            for (let k = 0; k < count; k++) {
+                const t = (k + 1) / (count + 1);
+                let x, y;
+                if (t < 0.22) {
+                    const u = t / 0.22;
+                    x = a.cx + (mcx - a.cx) * u;
+                    y = a.cy + ((mcy + r) - a.cy) * u;
+                } else if (t < 0.78) {
+                    const u = (t - 0.22) / 0.56;
+                    const ang = Math.PI / 2 + u * Math.PI * 2;
+                    x = mcx + r * Math.cos(ang);
+                    y = mcy + r * Math.sin(ang);
+                } else {
+                    const u = (t - 0.78) / 0.22;
+                    x = mcx + (b.cx - mcx) * u;
+                    y = (mcy - r) + (b.cy - (mcy - r)) * u;
+                }
+                pathPoints.push({ x: x, y: y, size: 5 });
+            }
+        } else {
+            const count = 12;
+            for (let k = 0; k < count; k++) {
+                const t = (k + 1) / (count + 1);
+                const x = a.cx + (b.cx - a.cx) * t + Math.sin(t * Math.PI * 2) * 12;
+                const y = a.cy + (b.cy - a.cy) * t;
+                pathPoints.push({ x: x, y: y });
+            }
+        }
+    }
+
+    const placedRects = [];
+    function rectsOverlap(x, y, w, h, pad) {
+        for (let i = 0; i < placedRects.length; i++) {
+            const r = placedRects[i];
+            if (x - pad < r.x + r.w + r.pad &&
+                x + w + pad > r.x - r.pad &&
+                y - pad < r.y + r.h + r.pad &&
+                y + h + pad > r.y - r.pad) return true;
+        }
+        return false;
+    }
+    function findSpot(w, h, pad, attempts) {
+        attempts = attempts || 90;
+        for (let a = 0; a < attempts; a++) {
+            const x = Math.random() * Math.max(1, W - w - 8) + 4;
+            const y = Math.random() * Math.max(1, H - h - 8) + 4;
+            if (!rectsOverlap(x, y, w, h, pad)) {
+                placedRects.push({ x: x, y: y, w: w, h: h, pad: pad });
+                return { x: x, y: y };
+            }
+        }
+        return null;
+    }
+    function setPos(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+
+    for (let i = 0; i < N; i++) {
+        placedRects.push({ x: pos[i].cx - 30, y: pos[i].cy - 30, w: 60, h: 60, pad: 18 });
+    }
+    for (let i = 0; i < pathPoints.length; i++) {
+        placedRects.push({ x: pathPoints[i].x - 3, y: pathPoints[i].y - 3, w: 6, h: 6, pad: 3 });
+    }
+
+    const frag = document.createDocumentFragment();
+    const fx = document.createElement('div');
+    fx.className = 'map-fx-layer';
+
+    const nebCols = ['rgba(147,112,219,1)', 'rgba(0,191,255,1)', 'rgba(255,105,180,1)', 'rgba(64,224,208,1)', 'rgba(255,160,60,1)', 'rgba(120,255,120,1)'];
+    for (let i = 0; i < 14; i++) {
+        const nb = document.createElement('div');
+        nb.className = 'map-nebula';
+        const s = 80 + Math.random() * 100;
+        nb.style.width = s + 'px'; nb.style.height = s + 'px';
+        nb.style.background = 'radial-gradient(circle, ' + nebCols[i % nebCols.length] + ', transparent 70%)';
+        nb.style.animationDuration = (7 + Math.random() * 5) + 's';
+        nb.style.animationDelay = (-Math.random() * 8) + 's';
+        const spot = findSpot(s, s, 8, 120);
+        if (spot) { setPos(nb, spot.x, spot.y); frag.appendChild(nb); }
+    }
+
+    for (let i = 0; i < 8; i++) {
+        const gx = document.createElement('div');
+        gx.className = 'map-galaxy';
+        const gw = 55 + Math.random() * 50;
+        const gh = gw * 0.45;
+        gx.style.width = gw + 'px'; gx.style.height = gh + 'px';
+        gx.innerHTML = '<div class="g-core"></div><div class="g-arm"></div><div class="g-arm g-arm2"></div>';
+        gx.style.animationDelay = (-Math.random() * 5) + 's';
+        const pad = Math.ceil(gw * 0.2) + 8;
+        const spot = findSpot(gw, gh, pad, 110);
+        if (spot) {
+            setPos(gx, spot.x + pad / 2 - gw * 0.02, spot.y + (pad + gh * 0.6) / 2);
+            gx.style.transform = 'rotate(' + (Math.random() * 90 - 45) + 'deg)';
+            frag.appendChild(gx);
+        }
+    }
+
+    for (let i = 0; i < 150; i++) {
+        const st = document.createElement('div');
+        st.className = 'map-star';
+        const s = 2 + Math.random() * 2.5;
+        st.style.width = s + 'px'; st.style.height = s + 'px';
+        st.style.animationDuration = (2 + Math.random() * 3) + 's';
+        st.style.animationDelay = (-Math.random() * 3) + 's';
+        const spot = findSpot(s, s, 2, 40);
+        if (spot) { setPos(st, spot.x, spot.y); frag.appendChild(st); }
+    }
+
+    for (let i = 0; i < 16; i++) {
+        const sp = document.createElement('div');
+        sp.className = 'map-spark';
+        const s = 8 + Math.random() * 12;
+        sp.style.width = s + 'px'; sp.style.height = s + 'px';
+        sp.style.animationDelay = (-Math.random() * 3) + 's';
+        const spot = findSpot(s, s, 6, 60);
+        if (spot) { setPos(sp, spot.x, spot.y); frag.appendChild(sp); }
+    }
+
+    for (let i = 0; i < 8; i++) {
+        const cl = document.createElement('div');
+        cl.className = 'map-cluster';
+        cl.style.animationDelay = (-Math.random() * 4) + 's';
+        const spot = findSpot(38, 30, 4, 70);
+        if (spot) { setPos(cl, spot.x + 10, spot.y); frag.appendChild(cl); }
+    }
+
+    for (let i = 0; i < 14; i++) {
+        const ast = document.createElement('div');
+        ast.className = 'map-asteroid';
+        const s = 10 + Math.random() * 14;
+        const sh = s * (0.75 + Math.random() * 0.4);
+        ast.style.width = s + 'px'; ast.style.height = sh + 'px';
+        ast.style.animationDuration = (12 + Math.random() * 16) + 's';
+        ast.style.animationDelay = (-Math.random() * 24) + 's';
+        const spot = findSpot(s, sh, 10, 80);
+        if (spot) { setPos(ast, spot.x, spot.y); frag.appendChild(ast); }
+    }
+
+    for (let i = 0; i < 4; i++) {
+        const sat = document.createElement('div');
+        sat.className = 'map-satellite';
+        sat.style.animationDuration = (8 + Math.random() * 6) + 's';
+        sat.style.animationDelay = (-Math.random() * 10) + 's';
+        sat.innerHTML = '<div class="sat-panel left"></div><div class="sat-body"></div><div class="sat-dish"></div><div class="sat-panel right"></div>';
+        const spot = findSpot(26, 24, 14, 80);
+        if (spot) { setPos(sat, spot.x, spot.y); frag.appendChild(sat); }
+    }
+
+    for (let i = 0; i < 3; i++) {
+        const bh = document.createElement('div');
+        bh.className = 'map-blackhole';
+        const s = 20 + Math.random() * 12;
+        bh.style.width = s + 'px'; bh.style.height = s + 'px';
+        bh.style.animationDuration = (8 + Math.random() * 5) + 's';
+        bh.style.animationDelay = (-Math.random() * 8) + 's';
+        bh.innerHTML = '<div class="bh-core"></div><div class="bh-ring"></div>';
+        const rw = s * 1.8, rh = s * 1.6;
+        const spot = findSpot(rw, rh, 6, 90);
+        if (spot) {
+            setPos(bh, spot.x + (rw - s) / 2, spot.y + (rh - s) / 2);
+            frag.appendChild(bh);
+        }
+    }
+
+    for (let i = 0; i < 4; i++) {
+        const fp = document.createElement('div');
+        fp.className = 'map-farplanet';
+        const s = 26 + Math.random() * 16;
+        fp.style.width = s + 'px'; fp.style.height = s + 'px';
+        fp.style.animationDuration = (10 + Math.random() * 6) + 's';
+        fp.style.animationDelay = (-Math.random() * 8) + 's';
+        fp.appendChild(makePlanetVisual(i * 5 + 4, { mini: true }));
+        const pad = Math.ceil(s * 0.4) + 12;
+        const spot = findSpot(s, s, pad, 90);
+        if (spot) { setPos(fp, spot.x, spot.y); frag.appendChild(fp); }
+    }
+
+    for (let i = 0; i < 14; i++) {
+        const dp = document.createElement('div');
+        dp.className = 'map-decor';
+        const s = 16 + Math.random() * 18;
+        dp.style.width = s + 'px'; dp.style.height = s + 'px';
+        dp.style.animationDuration = (6 + Math.random() * 6) + 's';
+        dp.style.animationDelay = (-Math.random() * 8) + 's';
+        dp.appendChild(makePlanetVisual(i * 3 + 2, { mini: true }));
+        const pad = Math.ceil(s * 0.4) + 14;
+        const spot = findSpot(s, s, pad, 90);
+        if (spot) { setPos(dp, spot.x, spot.y); frag.appendChild(dp); }
+    }
+
+    for (let i = 0; i < 6; i++) {
+        const cm = document.createElement('div');
+        cm.className = 'map-comet';
+        cm.style.left = (Math.random() * (W - 60) + 50) + 'px';
+        cm.style.top = (Math.random() * Math.max(1, H - 300) + 20) + 'px';
+        cm.style.animationDuration = (6 + Math.random() * 5) + 's';
+        cm.style.animationDelay = (-Math.random() * 10) + 's';
+        fx.appendChild(cm);
+    }
+
+    for (let i = 0; i < 5; i++) {
+        const sh = document.createElement('div');
+        sh.className = 'map-shooting';
+        sh.style.left = (Math.random() * (W - 40) + 30) + 'px';
+        sh.style.top = (Math.random() * Math.max(1, H - 260) + 20) + 'px';
+        sh.style.animationDuration = (4 + Math.random() * 3) + 's';
+        sh.style.animationDelay = (-Math.random() * 9) + 's';
+        fx.appendChild(sh);
+    }
+
+    frag.appendChild(fx);
+
+    for (let i = 0; i < pathPoints.length; i++) {
+        const pt = pathPoints[i];
+        const m = document.createElement('div');
+        m.className = 'map-meteor';
+        const s = pt.size || (4 + Math.random() * 3);
+        m.style.width = s + 'px'; m.style.height = s + 'px';
+        m.style.left = (pt.x - s / 2) + 'px';
+        m.style.top = (pt.y - s / 2) + 'px';
+        m.style.animationDelay = (Math.random() * 3) + 's';
+        frag.appendChild(m);
+    }
+
+    for (let i = 0; i < N; i++) {
+        const p = document.createElement('div');
+        p.className = 'map-planet';
+        p.style.left = (pos[i].cx - 27) + 'px';
+        p.style.top = (pos[i].cy - 27) + 'px';
+        p.appendChild(makePlanetVisual(i));
+        const num = document.createElement('span');
+        num.textContent = i + 1;
+        p.appendChild(num);
+        if (i + 1 > maxUnlockedLevel) p.classList.add('locked');
+        if (i + 1 === maxUnlockedLevel) p.classList.add('current');
+        if (i + 1 <= maxUnlockedLevel) {
+            p.addEventListener('click', () => {
+                initAudio();
+                document.getElementById('game-container').style.display = 'flex';
+                document.getElementById('level-select').classList.add('menu-hidden');
+                loadLevel(i);
+                if (musicEnabled) updateMusic();
+            });
+        }
+        frag.appendChild(p);
+    }
+
+    inner.appendChild(frag);
+
+    const cur = inner.querySelector('.map-planet.current');
+    requestAnimationFrame(() => {
+        if (cur) map.scrollTop = cur.offsetTop - map.clientHeight / 2 + 30;
+        else map.scrollTop = 0;
+    });
+}
+
+function openLevelSelect() {
+    showMenu('level-select'); applyLanguage();
+    buildLevelMap();
+}
+
+function openSettings() { showMenu('settings-menu'); applyLanguage(); }
+
+function exitGame() {
+    if(confirm("Закрыть игру?")) { window.close(); document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; color:white; background:#080320; font-size:2rem;">Игра закрыта</div>'; }
+}
+
+document.getElementById('music-toggle').addEventListener('change', function(e) {
+    musicEnabled = e.target.checked; saveSettings();
+    if(musicEnabled) updateMusic(); else { bgMusic.pause(); bgMusic.currentTime = 0; }
+});
+document.getElementById('sound-toggle').addEventListener('change', function(e) {
+    soundEnabled = e.target.checked; saveSettings();
+});
+
+// ==========================================
+//   СТАРТ
+// ==========================================
+loadSettings();
+applyLanguage();
+generateBackground();
+openMainMenu();

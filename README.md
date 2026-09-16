@@ -67,3 +67,14 @@
 ## Языки
 
 Русский — родной. Английский — A2 (чтение технической документации со словарём).
+
+---
+
+## Исходники проектов
+
+Код и ассеты лежат в этом репозитории:
+
+- [`projects/gonka2`](projects/gonka2) — Unity-проект гоночной игры «Gonka_2»
+- [`projects/bottle-sort`](projects/bottle-sort) — браузерная головоломка «Сортировка жидкости»
+- [`projects/garage-3d`](projects/garage-3d) — Blender-модели и Unity-сцена гаража
+- [`projects/ar-fitting-room`](projects/ar-fitting-room) — AR-примерочная аксессуаров (Three.js)

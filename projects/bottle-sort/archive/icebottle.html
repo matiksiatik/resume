@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Замороженная бутылка в ледышке (с анимацией разрушения)</title>
+    <style>
+        /* Центрирование и фон */
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0a1128;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        .ice-container {
+            position: relative;
+            width: 90px;
+            height: 180px;
+            filter: drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8));
+        }
+
+        /* Основной слой куба (лёд) */
+        .ice-cube {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 2; /* Поверх бутылки */
+        }
+
+        /* Слой бутылки (за льдом) */
+        .bottle-inside {
+            position: absolute;
+            width: 60px;
+            height: 130px;
+            left: 15px;  /* Центрируем по ширине (90-60)/2 */
+            top: 15px;   /* Центрируем по высоте (160-130)/2 */
+            z-index: 1;  /* Подо льдом */
+            pointer-events: none;
+        }
+
+        /* Форма бутылки */
+        .bottle-body {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            clip-path: url(#bottle-clip);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Жидкости внутри */
+        .liquid-wrapper {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 80%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .liquid {
+            position: absolute;
+            width: 100%; height: 25%;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        /* Блик на стекле бутылки */
+        .bottle-shine {
+            position: absolute;
+            top: 15%;
+            left: 6px;
+            width: 20%;
+            height: 60%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.4), transparent);
+            border-radius: 50px;
+            filter: blur(2px);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* Снежинка и счётчик (поверх льда) */
+        .frost-text {
+            position: absolute;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            font-size: 2.5rem;
+            color: #ffffff;
+            text-shadow: 0 0 20px #88ddff, 0 0 40px #00aaff;
+            font-weight: bold;
+            pointer-events: none;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulseGlow {
+            0% { text-shadow: 0 0 10px #88ddff; }
+            50% { text-shadow: 0 0 30px #88ddff, 0 0 60px #00aaff; }
+            100% { text-shadow: 0 0 10px #88ddff; }
+        }
+
+        .counter {
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 14px;
+            border-radius: 16px;
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+        }
+
+        /* ===== АНИМАЦИЯ РАЗРУШЕНИЯ ===== */
+        .shatter-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            /* 0-45%: Лёд цел. 45%-60%: Разлет. 60%-100%: Исчез. Цикл 6 секунд */
+            animation: shatterLoop 6s ease-in-out infinite;
+        }
+
+        @keyframes shatterLoop {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            60% { opacity: 1; }
+            65% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+
+        /* Части льда (осколки) */
+        .shard {
+            animation: flyOut 6s ease-in-out infinite;
+        }
+        .shard1 { animation-name: fly1; }
+        .shard2 { animation-name: fly2; }
+        .shard3 { animation-name: fly3; }
+        .shard4 { animation-name: fly4; }
+
+        @keyframes fly1 {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            45% { transform: translate(-40px, -50px) rotate(-15deg); opacity: 1; }
+            60% { transform: translate(-90px, -120px) rotate(-30deg); opacity: 0; }
+            100% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+        }
+        @keyframes fly2 {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            45% { transform: translate(60px, -40px) rotate(20deg); opacity: 1; }
+            60% { transform: translate(120px, -100px) rotate(40deg); opacity: 0; }
+            100% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+        }
+        @keyframes fly3 {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            45% { transform: translate(-30px, 40px) rotate(-10deg); opacity: 1; }
+            60% { transform: translate(-70px, 90px) rotate(-25deg); opacity: 0; }
+            100% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+        }
+        @keyframes fly4 {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            45% { transform: translate(50px, 60px) rotate(15deg); opacity: 1; }
+            60% { transform: translate(100px, 130px) rotate(35deg); opacity: 0; }
+            100% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+        }
+
+        /* Частицы */
+        .particle {
+            animation: particleFly 6s ease-in-out infinite;
+        }
+        .p1 { animation-name: p1; }
+        .p2 { animation-name: p2; }
+        .p3 { animation-name: p3; }
+        .p4 { animation-name: p4; }
+        .p5 { animation-name: p5; }
+
+        @keyframes p1 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            40% { transform: translate(-30px, -60px) scale(0.3); opacity: 1; }
+            60% { transform: translate(-70px, -120px) scale(0); opacity: 0; }
+            100% { transform: translate(0, 0) scale(0); opacity: 0; }
+        }
+        @keyframes p2 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            42% { transform: translate(60px, -30px) scale(0.4); opacity: 1; }
+            62% { transform: translate(130px, -80px) scale(0); opacity: 0; }
+            100% { transform: translate(0, 0) scale(0); opacity: 0; }
+        }
+        @keyframes p3 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            38% { transform: translate(-20px, 50px) scale(0.5); opacity: 1; }
+            58% { transform: translate(-60px, 110px) scale(0); opacity: 0; }
+            100% { transform: translate(0, 0) scale(0); opacity: 0; }
+        }
+        @keyframes p4 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            44% { transform: translate(40px, 40px) scale(0.3); opacity: 1; }
+            64% { transform: translate(90px, 90px) scale(0); opacity: 0; }
+            100% { transform: translate(0, 0) scale(0); opacity: 0; }
+        }
+        @keyframes p5 {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            46% { transform: translate(-15px, -20px) scale(0.6); opacity: 1; }
+            66% { transform: translate(-40px, -60px) scale(0); opacity: 0; }
+            100% { transform: translate(0, 0) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ice-container">
+
+        <!-- 1. БУТЫЛКА ВНУТРИ ЛЬДА -->
+        <svg width="0" height="0" style="position:absolute;">
+            <defs>
+                <clipPath id="bottle-clip" clipPathUnits="objectBoundingBox">
+                    <path d="M 0.28 0.05 L 0.72 0.05 L 0.72 0.25 C 0.85 0.25, 1 0.42, 1 0.65 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.65 C 0 0.42, 0.15 0.25, 0.28 0.25 Z" />
+                </clipPath>
+
+                <!-- Градиенты для льда -->
+                <radialGradient id="cubeGradient" cx="50%" cy="50%" r="60%" fx="30%" fy="30%">
+                    <stop offset="0%" stop-color="#1c8fc3" />
+                    <stop offset="40%" stop-color="#147bb3" />
+                    <stop offset="100%" stop-color="#2ea3d9" />
+                </radialGradient>
+                <linearGradient id="shineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                </linearGradient>
+
+                <!-- Clip Paths для разбития льда -->
+                <clipPath id="clip1">
+                    <polygon points="0,0 60,0 40,90 0,90" />
+                </clipPath>
+                <clipPath id="clip2">
+                    <polygon points="60,0 100,0 100,75 40,90" />
+                </clipPath>
+                <clipPath id="clip3">
+                    <polygon points="0,90 40,90 25,180 0,180" />
+                </clipPath>
+                <clipPath id="clip4">
+                    <polygon points="100,75 40,90 45,180 100,180" />
+                </clipPath>
+
+                <!-- Собираем всю ледышку в единый шаблон -->
+                <g id="ice-group">
+                    <!-- Основной куб -->
+                    <path d="M 15 20 L 18 17 L 22 19 L 82 17 L 85 19 L 90 25 L 91 150 L 88 155 L 85 158 L 12 157 L 8 152 L 7 148 L 8 25 L 11 22 Z" 
+                          fill="url(#cubeGradient)" opacity="0.5" />
+                    <!-- Обводка -->
+                    <path d="M 15 20 L 18 17 L 22 19 L 82 17 L 85 19 L 90 25 L 91 150 L 88 155 L 85 158 L 12 157 L 8 152 L 7 148 L 8 25 L 11 22 Z" 
+                          fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>
+                    <!-- Снег -->
+                    <path d="M 10 25 C 15 10, 25 12, 35 18 C 45 10, 55 10, 65 18 C 75 12, 85 15, 90 25 L 90 32 C 82 28, 70 35, 60 28 C 50 35, 40 28, 30 35 C 20 28, 12 32, 8 32 Z" 
+                          fill="#ffffff" stroke="#ffffff" stroke-width="1"/>
+                    <path d="M 20 25 C 25 18, 35 20, 45 25 C 35 28, 25 25, 20 25 Z" fill="#aaddff" opacity="0.6"/>
+                    <path d="M 60 25 C 65 18, 75 20, 80 25 C 70 28, 60 25, 60 25 Z" fill="#88ccff" opacity="0.5"/>
+                    <path d="M 40 20 C 45 15, 55 15, 60 20 C 50 22, 40 20, 40 20 Z" fill="#ffffff" opacity="0.8"/>
+                    <!-- Сосульки -->
+                    <path d="M 10 156 L 15 175 L 20 156 L 25 180 L 30 156 L 38 170 L 45 156 L 52 182 L 60 156 L 68 172 L 75 156 L 82 180 L 88 156 Z" 
+                          fill="#aee6ff" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M 15 156 L 18 165 L 25 156 Z" fill="#7bc4e8" opacity="0.6"/>
+                    <path d="M 45 156 L 48 168 L 55 156 Z" fill="#7bc4e8" opacity="0.6"/>
+                    <path d="M 75 156 L 78 168 L 85 156 Z" fill="#7bc4e8" opacity="0.6"/>
+                    <!-- Блики -->
+                    <path d="M 25 40 L 40 40 L 55 100 L 40 140 L 25 140 Z" fill="url(#shineGradient)" />
+                    <ellipse cx="45" cy="50" rx="12" ry="20" fill="#ffffff" opacity="0.15" transform="rotate(-15 45 50)" filter="blur(2px)"/>
+                    <path d="M 85 40 L 91 40 L 91 140 L 85 140 Z" fill="#0b4b73" opacity="0.25" />
+                    <path d="M 7 40 L 10 40 L 10 140 L 7 140 Z" fill="#0b4b73" opacity="0.3" />
+                    <!-- Трещины -->
+                    <g fill="none" stroke="#ffffff" stroke-linejoin="round">
+                        <path d="M 90 60 L 70 70 L 65 85" stroke-width="1.5" opacity="0.3"/>
+                        <path d="M 8 100 L 25 110 L 30 125" stroke-width="1.5" opacity="0.25"/>
+                        <path d="M 10 130 L 25 145 L 40 140" stroke-width="2" opacity="0.4"/>
+                        <path d="M 85 90 L 60 100 L 55 115" stroke-width="1.5" opacity="0.35"/>
+                        <path d="M 25 45 L 40 65 L 35 85 L 50 110" stroke-width="2" opacity="0.8"/>
+                        <path d="M 70 35 L 55 60 L 65 80 L 50 100 L 55 125" stroke-width="1.8" opacity="0.7"/>
+                        <path d="M 35 135 L 50 145 L 65 140" stroke-width="1.5" opacity="0.6"/>
+                        <path d="M 75 85 L 60 95 L 65 110" stroke-width="1.5" opacity="0.5"/>
+                        <path d="M 40 65 L 55 70 L 50 85" stroke-width="1" opacity="0.5"/>
+                        <path d="M 65 60 L 75 70 L 70 85" stroke-width="1" opacity="0.4"/>
+                        <path d="M 30 100 L 40 95 L 45 85" stroke-width="1" opacity="0.6"/>
+                        <path d="M 25 60 L 30 70 L 20 75" stroke-width="1" opacity="0.35"/>
+                    </g>
+                    <!-- Пузырьки -->
+                    <g fill="#ffffff" opacity="0.4">
+                        <circle cx="20" cy="50" r="1.5" />
+                        <circle cx="75" cy="45" r="1" />
+                        <circle cx="30" cy="100" r="1.8" />
+                        <circle cx="80" cy="110" r="1.2" />
+                        <circle cx="50" cy="135" r="1" />
+                        <circle cx="15" cy="90" r="1.5" />
+                        <circle cx="70" cy="130" r="1" />
+                    </g>
+                </g>
+            </defs>
+        </svg>
+
+        <div class="bottle-inside">
+            <div class="bottle-body">
+                <div class="liquid-wrapper">
+                    <div class="liquid" style="bottom: 0%; background: #e74c3c;"></div>
+                    <div class="liquid" style="bottom: 25%; background: #2ecc71;"></div>
+                    <div class="liquid" style="bottom: 50%; background: #3498db;"></div>
+                    <div class="liquid" style="bottom: 75%; background: #f1c40f;"></div>
+                </div>
+                <div class="bottle-shine"></div>
+            </div>
+            <svg width="60" height="130" viewBox="0 0 60 130" style="position:absolute; top:0; left:0; pointer-events:none; z-index:4;">
+                <path d="M 16.8 6.5 L 43.2 6.5 L 43.2 32.5 C 51 32.5, 60 54.6, 60 84.5 L 60 117 C 60 130, 57 130, 51 130 L 9 130 C 3 130, 0 130, 0 117 L 0 84.5 C 0 54.6, 9 32.5, 16.8 32.5 Z" 
+                      fill="none" stroke="#ffffff" stroke-width="2" filter="drop-shadow(0 0 4px rgba(255,255,255,0.8))" />
+            </svg>
+        </div>
+
+        <!-- 2. ОСНОВНОЙ ЛЕДЯНОЙ БЛОК (всегда находится на месте, пока не начнётся анимация) -->
+        <svg class="ice-cube" viewBox="0 0 100 180" preserveAspectRatio="none">
+            <use href="#ice-group" />
+        </svg>
+
+        <!-- 3. СЛОЙ АНИМАЦИИ РАЗРУШЕНИЯ -->
+        <div class="shatter-layer">
+            <svg viewBox="0 0 100 180" preserveAspectRatio="none">
+                <!-- Осколки ледышки -->
+                <g clip-path="url(#clip1)" class="shard shard1"><use href="#ice-group" /></g>
+                <g clip-path="url(#clip2)" class="shard shard2"><use href="#ice-group" /></g>
+                <g clip-path="url(#clip3)" class="shard shard3"><use href="#ice-group" /></g>
+                <g clip-path="url(#clip4)" class="shard shard4"><use href="#ice-group" /></g>
+                
+                <!-- Частицы (мелкие осколки) -->
+                <circle class="particle p1" cx="30" cy="40" r="2" fill="#aee6ff" />
+                <circle class="particle p2" cx="70" cy="30" r="2.5" fill="#ffffff" />
+                <circle class="particle p3" cx="50" cy="70" r="1.5" fill="#88ddff" />
+                <circle class="particle p4" cx="20" cy="100" r="2" fill="#fff" />
+                <circle class="particle p5" cx="80" cy="90" r="1.5" fill="#aee6ff" />
+                <circle class="particle p1" cx="40" cy="140" r="2.5" fill="#ffffff" />
+                <circle class="particle p2" cx="60" cy="120" r="2" fill="#88ddff" />
+                <circle class="particle p3" cx="15" cy="60" r="1" fill="#fff" />
+                <circle class="particle p4" cx="85" cy="150" r="2" fill="#aee6ff" />
+                <circle class="particle p5" cx="55" cy="160" r="1.5" fill="#ffffff" />
+            </svg>
+        </div>
+
+        <!-- 4. СНЕЖИНКА И СЧЁТЧИК -->
+        <div class="frost-text">❄️</div>
+        <div class="counter">0/1</div>
+
+    </div>
+
+</body>
+</html>

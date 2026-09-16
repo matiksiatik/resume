@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сортировка Жидкости</title>
+    <style>
+        /* ===== БАЗОВЫЕ СТИЛИ ===== */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-color: #080320;
+        }
+        #app {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ===== ФОНОВЫЙ КОНТЕЙНЕР ===== */
+        #bg-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            filter: blur(2px);
+        }
+        #space-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        @keyframes floatPlanet {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+        #planet-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain;
+            object-position: center 50%;
+            transform: scale(0.7);
+            animation: floatPlanet 6s ease-in-out infinite;
+        }
+
+        /* ===== АНИМАЦИИ ЗВЁЗД ===== */
+        @keyframes floatStar {
+            0% { transform: translateY(0px) scale(1); opacity: 0.3; }
+            50% { transform: translateY(-40px) scale(1.4); opacity: 0.9; }
+            100% { transform: translateY(0px) scale(1); opacity: 0.3; }
+        }
+        @keyframes shootingStar {
+            0% { transform: translate(0, 0) rotate(-40deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(-350px, 350px) rotate(-40deg); opacity: 0; }
+        }
+        .bg-star { position: absolute; border-radius: 50%; background: white; animation: floatStar linear infinite; }
+        .shooting-star {
+            position: absolute; width: 3px; height: 3px;
+            background: white; border-radius: 50%;
+            box-shadow: 0 0 10px 5px white;
+            animation: shootingStar linear infinite;
+        }
+        .shooting-star::after {
+            content: ''; position: absolute; top: 50%; right: 100%;
+            width: 80px; height: 2px;
+            background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+            transform: translateY(-50%); border-radius: 2px;
+        }
+        .star-cluster {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.6);
+            box-shadow: 10px 20px 0 0 white, 30px 40px 0 0 rgba(255,255,255,0.8), -10px 50px 0 0 white, 20px 70px 0 0 rgba(255,255,255,0.5);
+            filter: blur(2px); 
+        }
+
+        /* ===== МЕНЮ И НАСТРОЙКИ ===== */
+        .menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.3s;
+            background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+        }
+        .menu-hidden { opacity: 0; pointer-events: none; }
+
+        .menu-title-img {
+            width: 80%; max-width: 350px; height: auto;
+            animation: floatTitle 3s ease-in-out infinite;
+            margin-bottom: 20px; pointer-events: none;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+        }
+        @keyframes floatTitle {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .menu-button {
+            position: relative; cursor: pointer; opacity: 0.9;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+            padding: 2px; background: black; border-radius: 16px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            border: none; width: 80%; max-width: 300px; margin: 6px 0; text-align: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .menu-button:hover { opacity: 1; box-shadow: 0 0 30px rgba(185, 49, 252, 0.8); }
+        .menu-button:active { transform: scale(0.95); }
+        .menu-button-inner {
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+            padding: 14px 20px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; text-align: center; font-weight: 800; font-size: 1.2rem;
+            width: 100%; height: 100%; box-sizing: border-box; letter-spacing: 1px;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+        }
+        .menu-button-inner svg { width: 22px; height: 22px; stroke: white; flex-shrink: 0; }
+
+        .back-button {
+            position: absolute; top: 20px; left: 20px;
+            background: black; border: none; border-radius: 50%; padding: 2px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            width: 52px; height: 52px; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .back-button:active { transform: scale(0.90); }
+        .back-button:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .back-button span {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            background: #B931FC; border-radius: 50%;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-size: 1.6rem; font-weight: bold;
+        }
+
+        .level-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; width: 80%; max-width: 300px; }
+        .level-btn {
+            position: relative; width: 60px; height: 60px; background: black; border-radius: 16px; padding: 2px;
+            border: none; cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .level-btn:active { transform: scale(0.92); }
+        .level-btn:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .level-btn span {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-weight: bold; font-size: 1.2rem;
+        }
+        .level-btn.locked { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .level-btn.current { box-shadow: 0 0 30px rgba(0, 210, 255, 0.8); }
+
+        .settings-row {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 80%; max-width: 300px; padding: 8px 12px; margin: 8px 0;
+            background: black; border-radius: 16px; padding: 2px;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd);
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .settings-row .inner {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc);
+            color: white; font-weight: bold; font-size: 1.1rem;
+        }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .3s; border-radius: 34px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px;
+            background-color: white; transition: .3s; border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        input:checked + .slider { background: linear-gradient(135deg, #8122b0, #dc98fd); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* ===== ИГРОВОЙ ИНТЕРФЕЙС ===== */
+        #game-container { 
+            display: none; flex-direction: column; width: 100%; height: 100%; 
+            z-index: 11; position: absolute; top: 0; left: 0;
+            background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+        }
+        #header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            width: 100%; padding: 10px 15px; font-size: 1.2rem; font-weight: bold; 
+            box-sizing: border-box; 
+        }
+        #timer-display {
+            display: none;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #fff;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin: 0 8px;
+            text-shadow: 0 0 8px #00d2ff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #timer-icon {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            animation: timerTick 2s linear infinite;
+            animation-play-state: paused;
+        }
+        @keyframes timerTick {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(180deg); }
+        }
+        
+        .btn-control {
+            background: black; border-radius: 16px; padding: 2px; border: none; cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+            background-image: linear-gradient(to top, #8122b0, #dc98fd); display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+        }
+        .btn-control:active { transform: scale(0.92); }
+        .btn-control:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+        .btn-control span {
+            display: block; padding: 6px 16px; background: #B931FC; border-radius: 14px;
+            background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; font-weight: bold; font-size: 1.1rem;
+        }
+
+        #game-board { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 15px; 
+            width: 100%; 
+            height: 65%; 
+            padding: 10px 0; 
+            align-content: center; 
+            transition: height 0.3s, padding 0.3s, gap 0.3s, max-width 0.3s;
+        }
+        /* Специальный стиль для уровня с большой бутылкой (33-й уровень, индекс 32) */
+        #game-board.big-bottle-level {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 10px;
+            align-items: start;
+            justify-items: center;
+            height: 100%;
+            padding: 120px 10px 20px 10px; /* Значительно увеличили отступ сверху */
+            box-sizing: border-box;
+        }
+        #game-board.big-bottle-level .bottle-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            align-content: flex-start;
+            width: 100%;
+            height: 100%;
+        }
+        #game-board.big-bottle-level .bottle-group.small-bottles .bottle {
+            width: 48px;
+            height: 105px;
+        }
+        #game-board.big-bottle-level .center-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        /* Переопределяем размеры большой бутылки, чтобы она не наследовала small-bottles */
+        #game-board.big-bottle-level .bottle.big-bottle {
+            width: 60px;
+            height: 580px;
+            filter: drop-shadow(0 0 12px rgba(255,255,255,0.6));
+            z-index: 5;
+        }
+        #game-board.big-bottle-level .bottle.big-bottle .liquid-wrapper {
+            height: 90%;
+        }
+        #game-board.big-bottle-level .bottle.big-bottle .liquid {
+            height: 5%;
+        }
+        #game-board.big-bottle-level .bottle.big-bottle .bottle-body-container::before {
+            top: 10%;
+            height: 70%;
+        }
+
+        /* ===== БУТЫЛКИ (базовый размер) ===== */
+        .bottle { 
+            display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; touch-action: manipulation; 
+            width: 60px; height: 130px; 
+            position: relative;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease; 
+            filter: drop-shadow(0 0 3px rgba(220, 240, 255, 0.8)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)); 
+        }
+        .bottle.selected {
+            transform: translateY(-20px) scale(1.05);
+            filter: drop-shadow(0 20px 25px rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,255,255,1)) drop-shadow(0 0 25px rgba(135,206,250,0.6));
+            z-index: 10;
+        }
+        .bottle.pouring {
+            transform: translateY(-70px) scale(1.15);
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(135, 206, 250, 0.7));
+            z-index: 50;
+        }
+        .bottle.receiving { transform: scale(1.1) translateY(10px); }
+        .bottle.receiving .bottle-body-container { filter: drop-shadow(0 0 20px rgba(135, 206, 250, 0.8)); }
+        
+        .bottle-body-container { width: 100%; height: 100%; position: relative; clip-path: url(#bottle-clip); background: rgba(255, 255, 255, 0.05); pointer-events: none; }
+        .liquid-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; height: 80%; pointer-events: none; overflow: hidden; }
+        .liquid { position: absolute; width: 100%; height: 25%; bottom: 0; transition: opacity 0.2s; pointer-events: none; }
+
+        /* Скрытые слои */
+        .liquid.hidden {
+            background-color: #111 !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #aaa;
+        }
+        .liquid.hidden::after {
+            content: "?";
+        }
+
+        .bottle-body-container::before { content: ''; position: absolute; top: 15%; left: 6px; width: 20%; height: 60%; background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent); border-radius: 50px; filter: blur(2px); z-index: 10; pointer-events: none; }
+
+        @keyframes ripple {
+            0% { transform: scale(1) translateY(0); opacity: 1; }
+            50% { transform: scale(1.2) translateY(-5%); opacity: 0.9; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .liquid.ripple {
+            animation: ripple 0.5s ease-out;
+        }
+
+        /* ===== СТИЛИ ДЛЯ МАЛЕНЬКИХ БУТЫЛОК (уровни 19–21, 27, 31, 32, 33) ===== */
+        #game-board.small-bottles {
+            gap: 8px;
+            padding-top: 20px;
+            height: 55%;
+            max-width: 390px;
+            margin: 0 auto;
+        }
+        #game-board.small-bottles .bottle {
+            width: 48px;
+            height: 105px;
+        }
+        #game-board.small-bottles .bottle.selected {
+            transform: translateY(-15px) scale(1.05);
+        }
+        #game-board.small-bottles .bottle.pouring {
+            transform: translateY(-50px) scale(1.15);
+        }
+        #game-board.small-bottles .bottle.receiving {
+            transform: scale(1.1) translateY(8px);
+        }
+        /* Замороженные бутылки в small-bottles: ледышка чуть больше, бутылка внутри стандартного размера */
+        #game-board.small-bottles .bottle.locked-bottle {
+            width: 60px;
+            height: 130px;
+        }
+        #game-board.small-bottles .bottle.locked-bottle .bottle-inside {
+            width: 48px;
+            height: 105px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #game-board.small-bottles .bottle.locked-bottle .frost-text {
+            font-size: 1.5rem;
+        }
+        #game-board.small-bottles .bottle.locked-bottle .counter {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+        }
+
+        /* ===== КРЫШКА ===== */
+        .cap {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 14px;
+            background: linear-gradient(180deg, #A0522D 0%, #6B3A1F 100%);
+            border-radius: 8px 8px 0 0;
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.5);
+            z-index: 25;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .cap.closing {
+            animation: capDrop 0.5s ease-out forwards;
+        }
+        .cap.capped {
+            top: -2px;
+            opacity: 1;
+            animation: none;
+        }
+        @keyframes capDrop {
+            0%   { opacity: 0; top: -30px; }
+            60%  { opacity: 1; top: -4px; }
+            100% { opacity: 1; top: -2px; }
+        }
+
+        /* ===== ЧАСТИЦЫ ===== */
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 200;
+            animation: particleFly 0.7s ease-out forwards;
+        }
+        @keyframes particleFly {
+            0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+        }
+
+        /* ===== ПОДСВЕТКА ===== */
+        .bottle.highlight-src { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(0, 210, 255, 1)) drop-shadow(0 0 30px rgba(0, 210, 255, 0.9)) !important; z-index: 50 !important; }
+        .bottle.highlight-dst { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(255, 102, 178, 1)) drop-shadow(0 0 30px rgba(255, 102, 178, 0.9)) !important; z-index: 50 !important; }
+        .bottle.highlight-dst .bottle-body-container {
+            background: rgba(255, 102, 178, 0.25) !important;
+            box-shadow: inset 0 0 20px rgba(255, 102, 178, 0.9);
+        }
+
+        /* ===== КАПЛЯ ===== */
+        .liquid-stream { position: fixed; z-index: 999; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35)); }
+
+        /* ===== ОБУЧЕНИЕ ===== */
+        #tutorial-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50; display: none;
+        }
+        #tutorial-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 3, 32, 0.6); backdrop-filter: blur(2px);
+            z-index: 51; pointer-events: auto;
+        }
+        #tutorial-label {
+            position: absolute; bottom: 35%; width: 100%; text-align: center;
+            z-index: 55; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s;
+            color: #fff; font-size: 1.5rem; font-weight: 900;
+            text-shadow: 0 0 20px rgba(185, 49, 252, 1), 0 0 40px rgba(185, 49, 252, 0.8), 0 0 80px rgba(185, 49, 252, 0.5), 0 2px 0 #110b2b;
+        }
+        #tutorial-popup {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 60; display: none; width: 90%; max-width: 360px;
+        }
+        #tutorial-popup-content {
+            background: #1a0a3a; border: 2px solid #8122b0; border-radius: 30px;
+            padding: 30px 25px; text-align: center; box-shadow: 0 0 40px rgba(185, 49, 252, 0.4);
+        }
+        #tutorial-popup-content h2 { font-size: 1.8rem; margin-bottom: 15px; color: #00d2ff; font-weight: 900; }
+        
+        .demo-scene { position: relative; width: 160px; height: 120px; margin: 15px auto 25px auto; overflow: visible; }
+        .demo-bottle-wrapper { position: absolute; display: flex; justify-content: center; align-items: center; width: 22px; height: 50px; }
+        .demo-bottle {
+            width: 100%; height: 100%; position: relative;
+            filter: drop-shadow(0 0 2px rgba(220, 240, 255, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
+        }
+        .demo-bottle-body-container {
+            width: 100%; height: 100%; position: relative;
+            clip-path: url(#bottle-clip);
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+        .demo-liquid-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 80%;
+            overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+        }
+        .demo-liquid { width: 100%; height: 25%; }
+        .demo-bottle-body-container::before {
+            content: ''; position: absolute; top: 15%; left: 3px; width: 20%; height: 60%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent);
+            border-radius: 50px; filter: blur(1px); z-index: 10; pointer-events: none;
+        }
+        .demo-src { left: 15px; bottom: 0; animation: demoLift 3s ease-in-out infinite; z-index: 2; }
+        .demo-dst { right: 15px; bottom: 0; }
+        .demo-clone { left: 123px; bottom: 55px; animation: demoClone 3s ease-in-out infinite; z-index: 5; }
+        .demo-arrow {
+            position: absolute; left: 70px; top: 82px; font-size: 26px; font-weight: 900;
+            color: #00d2ff; text-shadow: 0 0 10px #00d2ff,0 0 20px #00d2ff,0 0 30px #00d2ff;
+            animation: demoArrowPulse 1.2s ease-in-out infinite;
+        }
+        @keyframes demoLift {
+            0%, 15% { transform: translateY(0); opacity: 1; z-index: 2; }
+            25% { transform: translateY(-30px); opacity: 1; z-index: 2; }
+            40% { transform: translateY(-30px); opacity: 0; z-index: 2; }
+            65% { transform: translateY(-30px); opacity: 0; z-index: 2; }
+            70% { transform: translateY(0); opacity: 0; z-index: 2; }
+            85%, 100% { transform: translateY(0); opacity: 1; z-index: 2; }
+        }
+        @keyframes demoClone {
+            0%, 35% { opacity: 0; transform: rotate(180deg) scale(0.8) translateY(-5px); }
+            45% { opacity: 1; transform: rotate(180deg) scale(1) translateY(5px); }
+            70% { opacity: 1; transform: rotate(180deg) scale(1) translateY(5px); }
+            75% { opacity: 0; transform: rotate(180deg) scale(1) translateY(5px); }
+            100% { opacity: 0; transform: rotate(180deg) scale(1) translateY(5px); }
+        }
+        @keyframes demoArrowPulse {
+            0%,100% { transform:scale(1); }
+            50% { transform:scale(1.2); }
+        }
+
+        /* ===== ОКНА ПОБЕДЫ/ПРОИГРЫША ===== */
+        #win-modal, #timeout-modal, #no-moves-modal, #timer-warning-modal, #hidden-warning-modal, #frozen-warning-modal { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(8,3,32,0.8); display: none; justify-content: center; 
+            align-items: center; z-index: 100; backdrop-filter: blur(4px); 
+        }
+        #win-content, #timeout-content, #no-moves-content, #timer-warning-content, #hidden-warning-content, #frozen-warning-content { 
+            padding: 30px 25px; border-radius: 30px; text-align: center; 
+            background: #1a0a3a; border: 2px solid #8122b0; 
+            max-width: 360px; width: 90%;
+        }
+        #win-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #timeout-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #ff6666; font-weight: 900; }
+        #no-moves-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #timer-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #hidden-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        #frozen-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+        
+        #win-content button, #timeout-content button, #no-moves-content button, #timer-warning-content button, #hidden-warning-content button, #frozen-warning-content button { 
+            margin-top: 20px; background: black; border-radius: 16px; padding: 2px; 
+            border: none; cursor: pointer; background-image: linear-gradient(to top, #8122b0, #dc98fd); 
+            box-shadow: 0 0 15px rgba(185, 49, 252, 0.3); 
+        }
+        #win-content button span, #timeout-content button span, #no-moves-content button span, #timer-warning-content button span, #hidden-warning-content button span, #frozen-warning-content button span { 
+            display: block; padding: 12px 30px; background: #B931FC; border-radius: 14px; 
+            background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; 
+            font-weight: bold; font-size: 1.1rem; 
+        }
+        #win-content button:active, #timeout-content button:active, #no-moves-content button:active, #timer-warning-content button:active, #hidden-warning-content button:active, #frozen-warning-content button:active { transform: scale(0.95); }
+        #no-moves-content .menu-button, #timeout-content .menu-button, #timer-warning-content .menu-button, #hidden-warning-content .menu-button, #frozen-warning-content .menu-button { width: auto; margin: 10px auto; padding: 0; }
+
+        /* ===== ЦИФРОВАЯ АНИМАЦИЯ ТАЙМЕРА В ПРЕДУПРЕЖДЕНИИ ===== */
+        .timer-warning-digits {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #ffaa00;
+            text-shadow: 0 0 20px rgba(255,170,0,0.5);
+            margin: 15px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ===== СТИЛИ ДЛЯ ЗАМОРОЖЕННОЙ БУТЫЛКИ (НОВАЯ ВЕРСИЯ) ===== */
+        .bottle.locked-bottle {
+            width: 90px;
+            height: 180px;
+        }
+
+        .locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 30;
+            background: transparent;
+            border-radius: 8px;
+            filter: drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8));
+            overflow: visible;
+        }
+
+        .locked-overlay.unlocking {
+            /* больше не используется, но оставлен для совместимости */
+            opacity: 1;
+            transform: none;
+        }
+
+        .bottle-inside {
+            position: absolute;
+            width: 66.7%;   /* 60px / 90px */
+            height: 72.2%;  /* 130px / 180px */
+            left: 16.7%;    /* 15px / 90px */
+            top: 8.3%;      /* 15px / 180px */
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .bottle-body {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            clip-path: url(#bottle-clip);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .bottle-shine {
+            position: absolute;
+            top: 15%;
+            left: 6px;
+            width: 20%;
+            height: 60%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.4), transparent);
+            border-radius: 50px;
+            filter: blur(2px);
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .ice-cube {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .locked-overlay .frost-text {
+            position: absolute;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            font-size: 2.5rem;
+            color: #ffffff;
+            text-shadow: 0 0 20px #88ddff, 0 0 40px #00aaff;
+            font-weight: bold;
+            pointer-events: none;
+            animation: pulseGlow 2s ease-in-out infinite;
+            transition: opacity 0.5s ease;
+        }
+
+        @keyframes pulseGlow {
+            0% { text-shadow: 0 0 10px #88ddff; }
+            50% { text-shadow: 0 0 30px #88ddff, 0 0 60px #00aaff; }
+            100% { text-shadow: 0 0 10px #88ddff; }
+        }
+
+        .locked-overlay .counter {
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 14px;
+            border-radius: 16px;
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Класс для плавного исчезновения */
+        .locked-overlay .frost-text.fade-out,
+        .locked-overlay .counter.fade-out {
+            opacity: 0 !important;
+            animation: none !important;
+        }
+
+        /* ===== АНИМАЦИЯ РАЗРУШЕНИЯ ЛЕДЯНОГО БЛОКА ===== */
+        .ice-fragment {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            will-change: transform, opacity;
+        }
+        .ice-fragment svg {
+            width: 100%;
+            height: 100%;
+        }
+        .ice-particle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ffffff, #aaddff);
+            pointer-events: none;
+            z-index: 25;
+            will-change: transform, opacity;
+        }
+        .icicle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 22;
+            will-change: transform, opacity;
+        }
+        .icicle svg {
+            width: 100%;
+            height: 100%;
+        }
+        /* Анимации для фрагментов */
+        @keyframes fragmentFly1 {
+            0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-80px, -120px) rotate(-30deg); opacity: 0; }
+        }
+        @keyframes fragmentFly2 {
+            0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(80px, -120px) rotate(30deg); opacity: 0; }
+        }
+        @keyframes fragmentFly3 {
+            0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-60px, 100px) rotate(-45deg); opacity: 0; }
+        }
+        @keyframes fragmentFly4 {
+            0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(60px, 100px) rotate(45deg); opacity: 0; }
+        }
+        @keyframes icicleFall1 {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(80px) rotate(10deg); opacity: 0; }
+        }
+        @keyframes icicleFall2 {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(90px) rotate(-15deg); opacity: 0; }
+        }
+        @keyframes icicleFall3 {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(70px) rotate(5deg); opacity: 0; }
+        }
+        @keyframes icicleFall4 {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100px) rotate(-8deg); opacity: 0; }
+        }
+        @keyframes icicleFall5 {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(85px) rotate(12deg); opacity: 0; }
+        }
+
+        /* ===== ДЕМО-КОНТЕЙНЕР ДЛЯ ЗАМОРОЖЕННОЙ БУТЫЛКИ ===== */
+        #frozen-demo-container {
+            position: relative;
+            width: 90px;
+            height: 180px;
+            margin: 15px auto;
+            transform: none;
+            transform-origin: center center;
+        }
+        #frozen-demo-container .bottle-inside {
+            width: 66.7%;
+            height: 72.2%;
+            left: 16.7%;
+            top: 8.3%;
+        }
+        #frozen-demo-container .locked-overlay {
+            filter: drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8));
+        }
+        #frozen-demo-container .frost-text {
+            font-size: 2.2rem;
+        }
+        #frozen-demo-container .counter {
+            font-size: 0.9rem;
+            padding: 4px 10px;
+        }
+
+        @media (max-width: 450px) {
+            .bottle { width: 50px; height: 110px; }
+            #game-board { gap: 10px; height: 60%; }
+            #tutorial-label { bottom: 30%; font-size: 1.2rem; }
+            #timer-display { font-size: 1rem; padding: 2px 8px; }
+            .timer-warning-digits { font-size: 2.8rem; }
+            #game-board.small-bottles {
+                max-width: 340px;
+                gap: 8px;
+                height: 50%;
+                padding-top: 15px;
+            }
+            #game-board.small-bottles .bottle {
+                width: 42px;
+                height: 92px;
+            }
+            #game-board.big-bottle-level .bottle.big-bottle {
+                width: 50px;
+                height: 480px;
+            }
+            #game-board.big-bottle-level {
+                padding: 100px 10px 20px 10px;
+            }
+        }
+        @media (max-width: 360px) {
+            .bottle { width: 40px; height: 90px; }
+            #game-board { gap: 8px; }
+            .level-btn { width: 50px; height: 50px; }
+            .menu-button-inner { font-size: 1rem; padding: 12px 15px; }
+            #tutorial-label { bottom: 25%; font-size: 1rem; }
+            .timer-warning-digits { font-size: 2.2rem; }
+            #game-board.small-bottles {
+                max-width: 295px;
+                gap: 6px;
+                height: 45%;
+                padding-top: 10px;
+            }
+            #game-board.small-bottles .bottle {
+                width: 37px;
+                height: 80px;
+            }
+            #game-board.big-bottle-level .bottle.big-bottle {
+                width: 42px;
+                height: 400px;
+            }
+            #game-board.big-bottle-level {
+                padding: 80px 10px 10px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- ===== ФОНОВЫЙ КОНТЕЙНЕР ===== -->
+        <div id="bg-container">
+            <img id="space-layer" src="spaceback.png" alt="Космос">
+            <img id="planet-layer" src="planetback.png" alt="Планеты">
+        </div>
+
+        <!-- ===== АУДИО ===== -->
+        <audio id="bg-music" src="menu.mp3" loop preload="auto"></audio>
+        <audio id="btn-sound" src="button.mp3" preload="auto"></audio>
+
+        <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
+        <div id="main-menu" class="menu-overlay">
+            <img src="name.png" class="menu-title-img" alt="BottleSort">
+            
+            <button class="menu-button" onclick="openLevelSelect()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M8 13V9m-2 2h4m5-2v.001M18 12v.001m4-.334v5.243a3.09 3.09 0 0 1-5.854 1.382L16 18a3.618 3.618 0 0 0-3.236-2h-1.528c-1.37 0-2.623.774-3.236 2l-.146.292A3.09 3.09 0 0 1 2 16.91v-5.243A6.667 6.667 0 0 1 8.667 5h6.666A6.667 6.667 0 0 1 22 11.667Z"></path>
+                    </svg>
+                    <span data-lang="menu_play">Играть</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="openSettings()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                    <span data-lang="menu_settings">Настройки</span>
+                </span>
+            </button>
+
+            <button class="menu-button" onclick="exitGame()">
+                <span class="menu-button-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span data-lang="menu_exit">Выход</span>
+                </span>
+            </button>
+        </div>
+
+        <!-- ===== МЕНЮ УРОВНЕЙ ===== -->
+        <div id="level-select" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div class="level-grid" id="level-grid"></div>
+        </div>
+
+        <!-- ===== НАСТРОЙКИ ===== -->
+        <div id="settings-menu" class="menu-overlay menu-hidden">
+            <button class="back-button" onclick="openMainMenu()"><span>✕</span></button>
+            <img src="name.png" style="width: 60%; max-width: 250px; height: auto; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));" alt="BottleSort">
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_music">Музыка</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="music-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_sound">Звук</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="inner">
+                    <span data-lang="settings_lang">Язык</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="lang-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.6; width: 80%; text-align: center; color: #aaaccc;" data-lang="settings_note">Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.</p>
+        </div>
+
+        <!-- ===== ОБУЧЕНИЕ ===== -->
+        <div id="tutorial-ui">
+            <div id="tutorial-overlay"></div>
+            <div id="tutorial-label"><span id="tutorial-label-text">Нажмите на эту бутылку</span></div>
+            <div id="tutorial-popup">
+                <div id="tutorial-popup-content">
+                    <h2 data-lang="tutorial_popup_title">Как играть?</h2>
+                    <div class="demo-scene">
+                        <div class="demo-bottle-wrapper demo-src">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-clone">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                        <div class="demo-liquid" style="bottom: 25%; background-color: #2ecc71;"></div>
+                                        <div class="demo-liquid" style="bottom: 50%; background-color: #3498db;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-bottle-wrapper demo-dst">
+                            <div class="demo-bottle">
+                                <div class="demo-bottle-body-container">
+                                    <div class="demo-liquid-wrapper">
+                                        <div class="demo-liquid" style="background-color: #e74c3c;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-arrow">➜</div>
+                    </div>
+                    <p style="margin-bottom: 20px; line-height: 1.5; font-size: 1rem; color: #ddd;" data-lang="tutorial_popup_desc">Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!</p>
+                    <button id="tutorial-start-btn" class="menu-button" style="width: auto; margin: 0; padding: 0;">
+                        <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;">
+                            <span data-lang="tutorial_popup_btn">Начать игру</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ИГРА ===== -->
+        <div id="game-container">
+            <div id="header">
+                <button class="btn-control" onclick="openMainMenu()"><span data-lang="game_back">Меню</span></button>
+                <span style="font-weight: 800; text-shadow: 0 2px 0 #110b2b;"><span data-lang="game_level">Уровень</span> <span id="level-num">1</span></span>
+                <span id="timer-display">
+                    <svg id="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2h12v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V2z" />
+                        <path d="M6 22h12v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2z" />
+                        <path d="M12 12v-4" />
+                        <path d="M12 16v4" />
+                    </svg>
+                    <span id="timer-text">1:30</span>
+                </span>
+                <button class="btn-control" id="reset-btn"><span data-lang="game_reset">⟳</span></button>
+            </div>
+            <div id="game-board"></div>
+        </div>
+
+        <!-- ===== ОКНО ПОБЕДЫ ===== -->
+        <div id="win-modal">
+            <div id="win-content">
+                <h2 data-lang="win_title">Уровень пройден!</h2>
+                <p data-lang="win_desc">Все жидкости успешно рассортированы!</p>
+                <button id="modal-next-btn"><span data-lang="win_next">Следующий уровень</span></button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРОИГРЫША (таймер) ===== -->
+        <div id="timeout-modal">
+            <div id="timeout-content">
+                <h2 data-lang="timeout_title">Время вышло!</h2>
+                <p data-lang="timeout_desc">Вы не успели отсортировать жидкости.</p>
+                <button id="timeout-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_retry">Повторить</span>
+                </button>
+                <button id="timeout-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОТСУТСТВИЯ ХОДОВ ===== -->
+        <div id="no-moves-modal">
+            <div id="no-moves-content">
+                <h2 data-lang="no_moves_title">Нет ходов!</h2>
+                <p data-lang="no_moves_desc">Вы не можете сделать ни одного переливания.</p>
+                <button id="no-moves-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_retry">Повторить</span>
+                </button>
+                <button id="no-moves-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_menu">В меню</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ПРЕДУПРЕЖДЕНИЯ О ТАЙМЕРЕ (только для 9 уровня) ===== -->
+        <div id="timer-warning-modal">
+            <div id="timer-warning-content">
+                <h2 data-lang="timer_warning_title">Уровень с таймером</h2>
+                <div class="timer-warning-digits" id="timer-warning-digits">10</div>
+                <p data-lang="timer_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!</p>
+                <button id="timer-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timer_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОБУЧЕНИЯ СКРЫТЫМ СЛОЯМ (22 уровень) ===== -->
+        <div id="hidden-warning-modal">
+            <div id="hidden-warning-content">
+                <h2 data-lang="hidden_warning_title">Скрытые слои</h2>
+                <div class="hidden-demo-scene">
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-src" id="hiddenSrc">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper">
+                                    <div class="hidden-demo-liquid" style="background-color: #e74c3c;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 50%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-clone" id="hiddenClone">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper">
+                                    <div class="hidden-demo-liquid" style="background-color: #e74c3c;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                                    <div class="hidden-demo-liquid question" style="bottom: 50%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-bottle-wrapper hidden-demo-dst" id="hiddenDst">
+                        <div class="hidden-demo-bottle">
+                            <div class="hidden-demo-bottle-body-container">
+                                <div class="hidden-demo-liquid-wrapper">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden-demo-arrow">➜</div>
+                    <div class="hidden-demo-drop" id="hiddenDrop">
+                        <div class="hidden-demo-drop-inner"></div>
+                    </div>
+                </div>
+                <p data-lang="hidden_warning_desc" style="margin-bottom: 10px; font-size: 1rem; color: #ddd; line-height: 1.5;">Нижние слои скрыты. Перелейте верхний слой, чтобы открыть следующий. Открытые слои остаются видимыми навсегда!</p>
+                <button id="hidden-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="hidden_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== ОКНО ОБУЧЕНИЯ ЗАМОРОЖЕННОЙ БУТЫЛКЕ (28 уровень) ===== -->
+        <div id="frozen-warning-modal">
+            <div id="frozen-warning-content">
+                <h2 data-lang="frozen_warning_title">Замороженная бутылка</h2>
+                <div id="frozen-demo-container">
+                    <!-- Сюда будет вставлена демо-бутылка со льдом через JS -->
+                </div>
+                <p data-lang="frozen_warning_desc" style="margin-bottom: 15px; font-size: 1rem; color: #ddd; line-height: 1.5;">
+                    Завершите любую обычную бутылку (заполните её одним цветом), чтобы разморозить замёрзшую. После разморозки вы сможете использовать её для сортировки.
+                </p>
+                <button id="frozen-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+                    <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="frozen_warning_start">Начать</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== МАСКА БУТЫЛКИ SVG ===== -->
+        <svg style="width:0; height:0; position:absolute;">
+          <defs>
+            <clipPath id="bottle-clip" clipPathUnits="objectBoundingBox">
+              <path d="M 0.28 0.05 L 0.72 0.05 L 0.72 0.25 C 0.85 0.25, 1 0.42, 1 0.65 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.65 C 0 0.42, 0.15 0.25, 0.28 0.25 Z" />
+            </clipPath>
+          </defs>
+        </svg>
+    </div>
+
+    <script>
+        // ==========================================
+        //   ПЕРЕВОДЫ И НАСТРОЙКИ
+        // ==========================================
+        const TRANSLATIONS = {
+            'en': {
+                'menu_title': 'BottleSort', 'menu_play': 'Play', 'menu_settings': 'Settings', 'menu_exit': 'Exit',
+                'levels_title': 'Select Level', 'settings_title': 'Settings', 'settings_music': 'Music', 'settings_sound': 'Sound', 'settings_lang': 'Language',
+                'settings_note': 'Place menu.mp3 and button.mp3 files in the game folder.',
+                'game_back': 'Menu', 'game_level': 'Level', 'game_reset': '⟳', 
+                'win_title': 'Level Cleared!', 'win_desc': 'All liquids sorted successfully!', 'win_next': 'Next Level',
+                'tutorial_popup_title': 'How to play?',
+                'tutorial_popup_desc': 'Click a bottle to select it. Then click an empty bottle or a bottle with the same top color. You cannot pour into a bottle with a different color!',
+                'tutorial_popup_btn': 'Start Tutorial',
+                'tutorial_label_src': 'Click this bottle',
+                'tutorial_label_dst': 'Click the other bottle',
+                'no_moves_title': 'No moves!',
+                'no_moves_desc': 'You cannot make any more moves.',
+                'no_moves_retry': 'Retry',
+                'no_moves_menu': 'Menu',
+                'timeout_title': 'Time is up!',
+                'timeout_desc': 'You did not finish sorting in time.',
+                'timeout_retry': 'Retry',
+                'timeout_menu': 'Menu',
+                'timer_warning_title': 'Level with timer',
+                'timer_warning_desc': 'This level has a time limit. Sort all liquids before time runs out or you will lose!',
+                'timer_warning_start': 'Start',
+                'hidden_warning_title': 'Hidden Layers',
+                'hidden_warning_desc': 'The lower layers are hidden. Pour the top layer to reveal the next one. Revealed layers stay visible forever!',
+                'hidden_warning_start': 'Start',
+                'frozen_warning_title': 'Frozen Bottle',
+                'frozen_warning_desc': 'Complete any regular bottle (fill it with one color) to unfreeze the frozen one. After unfreezing, you can use it for sorting.',
+                'frozen_warning_start': 'Start'
+            },
+            'ru': {
+                'menu_title': 'BottleSort', 'menu_play': 'Играть', 'menu_settings': 'Настройки', 'menu_exit': 'Выход',
+                'levels_title': 'Выбор уровня', 'settings_title': 'Настройки', 'settings_music': 'Музыка', 'settings_sound': 'Звук', 'settings_lang': 'Язык',
+                'settings_note': 'Для работы музыки и звуков поместите файлы menu.mp3 и button.mp3 в папку с игрой.',
+                'game_back': 'Меню', 'game_level': 'Уровень', 'game_reset': '⟳', 
+                'win_title': 'Уровень пройден!', 'win_desc': 'Все жидкости успешно рассортированы!', 'win_next': 'Следующий уровень',
+                'tutorial_popup_title': 'Как играть?',
+                'tutorial_popup_desc': 'Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!',
+                'tutorial_popup_btn': 'Начать игру',
+                'tutorial_label_src': 'Нажмите на эту бутылку',
+                'tutorial_label_dst': 'Нажмите на другую бутылку',
+                'no_moves_title': 'Нет ходов!',
+                'no_moves_desc': 'Вы не можете сделать ни одного переливания.',
+                'no_moves_retry': 'Повторить',
+                'no_moves_menu': 'В меню',
+                'timeout_title': 'Время вышло!',
+                'timeout_desc': 'Вы не успели отсортировать жидкости.',
+                'timeout_retry': 'Повторить',
+                'timeout_menu': 'В меню',
+                'timer_warning_title': 'Уровень с таймером',
+                'timer_warning_desc': 'На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!',
+                'timer_warning_start': 'Начать',
+                'hidden_warning_title': 'Скрытые слои',
+                'hidden_warning_desc': 'Нижние слои скрыты. Перелейте верхний слой, чтобы открыть следующий. Открытые слои остаются видимыми навсегда!',
+                'hidden_warning_start': 'Начать',
+                'frozen_warning_title': 'Замороженная бутылка',
+                'frozen_warning_desc': 'Завершите любую обычную бутылку (заполните её одним цветом), чтобы разморозить замёрзшую. После разморозки вы сможете использовать её для сортировки.',
+                'frozen_warning_start': 'Начать'
+            }
+        };
+
+        let currentLang = 'ru', soundEnabled = true, musicEnabled = true, maxUnlockedLevel = 33;
+
+        function loadSettings() {
+            try {
+                const s = JSON.parse(localStorage.getItem('waterSortSettings'));
+                if(s) {
+                    currentLang = s.lang || 'ru'; soundEnabled = s.sound !== undefined ? s.sound : true;
+                    musicEnabled = s.music !== undefined ? s.music : true; maxUnlockedLevel = s.maxLevel || 33;
+                }
+            } catch(e){}
+            maxUnlockedLevel = 33;
+            document.getElementById('sound-toggle').checked = soundEnabled;
+            document.getElementById('music-toggle').checked = musicEnabled;
+            document.getElementById('lang-toggle').checked = currentLang === 'en';
+        }
+
+        function saveSettings() {
+            localStorage.setItem('waterSortSettings', JSON.stringify({
+                lang: currentLang, sound: soundEnabled, music: musicEnabled, maxLevel: maxUnlockedLevel
+            }));
+        }
+
+        function applyLanguage() {
+            const langData = TRANSLATIONS[currentLang];
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if(langData[key]) el.innerText = langData[key];
+            });
+        }
+
+        // ==========================================
+        //   МУЗЫКА И ЗВУКИ
+        // ==========================================
+        let audioContext = null;
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') audioContext.resume();
+        }
+
+        const bgMusic = document.getElementById('bg-music');
+        function updateMusic() {
+            if (musicEnabled) {
+                initAudio();
+                bgMusic.play().catch(e => {});
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function playButtonSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const btnSnd = document.getElementById('btn-sound');
+                btnSnd.currentTime = 0;
+                btnSnd.play().catch(e => {});
+            } catch (e) {}
+        }
+
+        function playPourSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.35);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.35);
+            } catch (e) {}
+        }
+
+        function playCapSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.25);
+                osc.connect(gain); gain.connect(audioContext.destination);
+                osc.start(); osc.stop(audioContext.currentTime + 0.25);
+            } catch (e) {}
+        }
+
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.menu-button') || e.target.closest('.back-button') || 
+               e.target.closest('.level-btn') || e.target.closest('.btn-control') ||
+               e.target.closest('#modal-next-btn') || e.target.closest('#timeout-retry-btn') ||
+               e.target.closest('#timeout-menu-btn') || e.target.closest('#no-moves-retry-btn') || 
+               e.target.closest('#no-moves-menu-btn') || e.target.closest('#timer-warning-start-btn') ||
+               e.target.closest('#hidden-warning-start-btn') || e.target.closest('#frozen-warning-start-btn')) {
+                playButtonSound();
+            }
+        });
+
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        // ==========================================
+        //   ФОНОВЫЕ ОБЪЕКТЫ (ЗВЕЗДЫ)
+        // ==========================================
+        function createStar() {
+            const star = document.createElement('div');
+            star.className = 'bg-star';
+            const size = Math.random() * 3 + 1.5;
+            star.style.width = size + 'px'; star.style.height = size + 'px';
+            star.style.background = `radial-gradient(circle, #fff, rgba(255,255,255,0.2))`;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            star.style.animationDelay = (Math.random() * 10) + 's';
+            return star;
+        }
+        function createShootingStar() {
+            const star = document.createElement('div');
+            star.className = 'shooting-star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 2 + 3) + 's';
+            star.style.animationDelay = (Math.random() * 15) + 's';
+            return star;
+        }
+        function generateBackground() {
+            const bgContainer = document.getElementById('bg-container');
+            for(let i=0; i<50; i++) { bgContainer.appendChild(createStar()); }
+            for(let i=0; i<8; i++) { bgContainer.appendChild(createShootingStar()); }
+        }
+
+        // ==========================================
+        //   ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // ==========================================
+        let currentLevelIdx = 0, bottles = [], selectedIdx = null, isWin = false, isAnimating = false;
+        let isTutorial = false;
+        let tutorialResolve = null;
+        let demoDropInterval = null;
+        const cappedBottles = new Set();
+        let timerInterval = null, timerSeconds = 0;
+        let pendingTimerStart = null;
+        let warningDigitInterval = null;
+        let hiddenDemoInterval = null;
+        let hiddenDemoRunning = false;
+        
+        let levelHiddenIndices = [];
+        let bottleVisibility = [];
+
+        // Массив замороженных бутылок для текущего уровня
+        let frozenBottles = [];
+
+        // Переменные для большой бутылки (33 уровень)
+        let bigBottleIndex = -1;
+        let bigBottleMaxLayers = 4; // по умолчанию как обычная
+        let bigBottleColor = null;
+
+        // ==========================================
+        //   ЛОГИКА ИГРЫ И ОБУЧЕНИЯ
+        // ==========================================
+        const COLORS = { 'R':'#e74c3c', 'G':'#2ecc71', 'B':'#3498db', 'Y':'#f1c40f', 'P':'#ff66b2', 'O':'#ff8c00', 'C':'#1abc9c', 'T':'#9b59b6', 'M':'#d500f9' };
+        const COLOR_KEYS = ['R','G','B','Y','P','O','C','T','M'];
+
+        function hasAvailableMovesForBottles(bottles) {
+            for (let i = 0; i < bottles.length; i++) {
+                const src = bottles[i];
+                if (src.length === 0) continue;
+                // Нельзя переливать из большой бутылки
+                if (i === bigBottleIndex) continue;
+                const topColor = src[src.length - 1];
+                for (let j = 0; j < bottles.length; j++) {
+                    if (i === j) continue;
+                    const dst = bottles[j];
+                    // Проверяем вместимость приёмника
+                    const maxLayers = (j === bigBottleIndex) ? bigBottleMaxLayers : 4;
+                    if (dst.length >= maxLayers) continue;
+                    if (dst.length === 0 || dst[dst.length - 1] === topColor) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function generateLevel(totalBottles, hiddenCount, partialLengths, emptyCount, colorSet = COLOR_KEYS, maxAttempts = 100) {
+            const fullBottles = totalBottles - emptyCount - partialLengths.length;
+            let attempts = 0;
+            while (attempts < maxAttempts) {
+                attempts++;
+                let bottles = [];
+                for (let i = 0; i < fullBottles; i++) {
+                    let bottle = [];
+                    for (let j = 0; j < 4; j++) {
+                        bottle.push(colorSet[Math.floor(Math.random() * colorSet.length)]);
+                    }
+                    bottles.push(bottle);
+                }
+                for (let len of partialLengths) {
+                    let bottle = [];
+                    for (let j = 0; j < len; j++) {
+                        bottle.push(colorSet[Math.floor(Math.random() * colorSet.length)]);
+                    }
+                    bottles.push(bottle);
+                }
+                for (let i = 0; i < emptyCount; i++) {
+                    bottles.push([]);
+                }
+                let hiddenIndices = [];
+                if (hiddenCount > 0) {
+                    let pool = Array.from({length: fullBottles}, (_,i) => i);
+                    for (let i = pool.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i+1));
+                        [pool[i], pool[j]] = [pool[j], pool[i]];
+                    }
+                    hiddenIndices = pool.slice(0, hiddenCount);
+                }
+                if (hasAvailableMovesForBottles(bottles)) {
+                    return { bottles, hiddenIndices };
+                }
+            }
+            return { bottles: generateFallback(totalBottles, hiddenCount, partialLengths, emptyCount), hiddenIndices: [] };
+        }
+
+        function generateFallback(totalBottles, hiddenCount, partialLengths, emptyCount) {
+            const fallback = [
+                ['R','G','B','Y'],
+                ['P','O','C','R'],
+                ['G','B','Y','P'],
+                ['O','C','R','G'],
+                ['B','Y','P','O'],
+                ['C','R','G','B'],
+                ['Y','P','O','C'],
+                []
+            ];
+            while (fallback.length < totalBottles) {
+                fallback.push(['R','G','B','Y']);
+            }
+            return fallback.slice(0, totalBottles);
+        }
+
+        const LEVEL23 = generateLevel(9, 3, [], 1);
+        const LEVEL24 = generateLevel(13, 5, [3,3,3,3], 0);
+        const LEVEL25 = generateLevel(15, 7, [3,3,2], 0);
+        const LEVEL26 = generateLevel(12, 0, [], 1);
+        const LEVEL27 = generateLevel(20, 7, [3,3,3,2,2,2], 0);
+
+        levelHiddenIndices[21] = [0,1,2,3,4,5,6];
+        levelHiddenIndices[22] = LEVEL23.hiddenIndices;
+        levelHiddenIndices[23] = LEVEL24.hiddenIndices;
+        levelHiddenIndices[24] = LEVEL25.hiddenIndices;
+        levelHiddenIndices[25] = LEVEL26.hiddenIndices;
+        levelHiddenIndices[26] = LEVEL27.hiddenIndices;
+
+        // ===== НОВЫЕ УРОВНИ 28-33 =====
+        // Уровень 28 (уже есть)
+        const LEVEL28 = [
+            ['P','R','G','B'],
+            ['P','Y','O','R'],
+            ['P','O','G','Y'],
+            [], 
+            ['O','B','Y','G'],
+            ['O','R','B','P'],
+            ['R','G','B','Y'],
+            []               
+        ];
+
+        // Уровень 29: 16 бутылок, 2 замороженные, таймер 80с
+        const LEVEL29 = (() => {
+            const result = generateLevel(13, 0, [], 1, ['R','G','B','Y']);
+            const bottles = result.bottles; // 13 обычных + 1 пустая = 14
+            // Добавляем 2 замороженные бутылки со смесью
+            bottles.push(['R','G','B','Y']);
+            bottles.push(['R','G','B','Y']);
+            return bottles;
+        })();
+
+        // Уровень 30: 19 бутылок (13 обычных + 2 пустые + 2 замороженные + 2 неполные)
+        const LEVEL30 = (() => {
+            const result = generateLevel(13, 3, [], 2, ['R','G','B','Y','P']);
+            let bottles = result.bottles;
+            // Делаем две обычные бутылки наполовину пустыми (по 2 слоя)
+            bottles[0] = bottles[0].slice(0,2);
+            bottles[1] = bottles[1].slice(0,2);
+            // Добавляем две замороженные бутылки
+            bottles.push(['R','G','B','Y']);
+            bottles.push(['R','G','B','Y']);
+            return { bottles, hiddenIndices: result.hiddenIndices };
+        })();
+
+        // Уровень 31: 23 бутылки (15 обычных + 2 пустые + 3 замороженные + 2 неполные)
+        const LEVEL31 = (() => {
+            const result = generateLevel(15, 5, [], 2, ['R','G','B','Y','P','O']);
+            let bottles = result.bottles;
+            // Делаем две обычные бутылки наполовину пустыми (по 2 слоя)
+            bottles[0] = bottles[0].slice(0,2);
+            bottles[1] = bottles[1].slice(0,2);
+            // Добавляем три замороженные бутылки
+            bottles.push(['R','G','B','Y']);
+            bottles.push(['R','G','B','Y']);
+            bottles.push(['R','G','B','Y']);
+            return { bottles, hiddenIndices: result.hiddenIndices };
+        })();
+
+        // Уровень 32: 21 бутылка (15 обычных + 1 пустая + 5 замороженных)
+        const LEVEL32 = (() => {
+            const result = generateLevel(15, 0, [], 1, ['R','G','B','Y','P','O']);
+            let bottles = result.bottles;
+            // Добавляем пять замороженных бутылок
+            for (let i = 0; i < 5; i++) {
+                bottles.push(['R','G','B','Y']);
+            }
+            return { bottles, hiddenIndices: result.hiddenIndices };
+        })();
+
+        // ===== УРОВЕНЬ 33: большая бутылка по центру, 24 маленькие бутылки =====
+        // Большая бутылка (индекс 0) изначально содержит 1 слой красного цвета.
+        // 24 обычные бутылки (индексы 1-24) маленького размера (small-bottles).
+        // В 19 бутылках на дне красный слой, сверху три случайных цвета из {G,B,Y,P}.
+        // В 1 бутылке нет красного, она заполнена другими цветами.
+        // 4 пустые бутылки.
+        const LEVEL33 = (() => {
+            // Создаём 19 бутылок с красным на дне и разными верхними цветами
+            const topColors = ['G','B','Y','P'];
+            let bottles = [];
+            // Генерируем 19 бутылок: ['R', c1, c2, c3] где c1,c2,c3 из topColors
+            for (let i = 0; i < 19; i++) {
+                let c1 = topColors[i % 4];
+                let c2 = topColors[(i+1) % 4];
+                let c3 = topColors[(i+2) % 4];
+                bottles.push(['R', c1, c2, c3]);
+            }
+            // 1 бутылка без красного: ['G','B','Y','P']
+            bottles.push(['G','B','Y','P']);
+            // 4 пустые бутылки
+            bottles.push([]);
+            bottles.push([]);
+            bottles.push([]);
+            bottles.push([]);
+            // Итого 19+1+4 = 24 обычные бутылки.
+            return bottles;
+        })();
+
+        levelHiddenIndices[28] = []; // для 28 нет скрытых
+        levelHiddenIndices[29] = []; // для 29 нет скрытых
+        levelHiddenIndices[30] = LEVEL30.hiddenIndices; // скрытые индексы из generateLevel
+        levelHiddenIndices[31] = LEVEL31.hiddenIndices;
+        levelHiddenIndices[32] = LEVEL32.hiddenIndices;
+        levelHiddenIndices[33] = []; // для 33 нет скрытых
+
+        // Конфигурация замороженных бутылок для уровней (индекс, required)
+        // Для 33 уровня (индекс 32) замороженные бутылки убраны
+        const frozenConfig = {
+            28: [{index: 6, required: 1}], // для 28 уровня
+            29: [{index: 14, required: 2}, {index: 15, required: 2}],
+            30: [{index: 15, required: 1}, {index: 16, required: 2}], // одна с 1, другая с 2
+            31: [{index: 17, required: 1}, {index: 18, required: 2}, {index: 19, required: 2}]
+        };
+
+        const LEVEL_DATA = [
+            [['R','G','B','R'], ['G','B','R','G'], ['B','R','G','B'], []],
+            [['R','G','B','Y'], ['G','B','Y','R'], ['B','Y','R','G'], ['Y','R','G','B'], []],
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','R'], ['Y','P','R','G'], ['P','R','G','B'], []],
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','R'], ['P','O','R','G'], ['O','R','G','B'], []],
+            [['R','G','B','Y'], ['G','B','Y','P'], ['B','Y','P','O'], ['Y','P','O','C'], ['P','O','C','R'], ['O','C','R','G'], ['C','R','G','B'], []],
+            [['R','G','B','Y'], ['G','O','P','R'], ['B','Y','O','G'], ['Y','P','R','O'], ['P','B','Y','B'], ['O','R','G','P'], []],
+            [['R','G','B','Y'], ['G','C','P','R'], ['B','Y','O','G'], ['Y','P','C','O'], ['P','O','R','C'], ['O','B','G','P'], ['C','R','Y','B'], []],
+            [['P','G','B','R'], ['C','Y','O','G'], ['B','R','Y','P'], ['O','C','R','B'], ['G','P','C','Y'], ['R','O','G','C'], ['Y','B','P','O'], []],
+            [['R','G','B','Y'], ['G','Y','R','B'], ['B','R','Y','G'], ['Y','B','G','R'], []],
+            [['R','G','B','Y'], ['P','O','R','G'], ['Y','B','O','P'], ['G','P','Y','O'], ['B','R','G','B'], ['O','Y','P','R'], []],
+            [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','G'], ['O','R','C','Y'], ['P','B','G','T'], ['C','Y','R','O'], []],
+            [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','O'], ['C','R','O','G'], ['P','Y','T','B'], ['O','G','C','P'], ['T','B','R','Y'], []],
+            [['R','G','B','Y'], ['P','O','R','G'], ['Y','B','P','O'], ['G','Y','B','R'], ['O','P','G','B'], ['R','Y','O','P'], []],
+            [['R','G','B','T'], ['Y','P','O','C'], ['G','C','Y','R'], ['B','T','P','O'], ['C','R','O','G'], ['P','Y','T','B'], ['O','G','C','P'], ['T','B','R','Y'], [], []],
+            [['R','G','B','Y'], ['P','O','C','T'], ['R','R','G','B'], ['Y','P','O','C'], ['T','R','R','G'], ['B','Y','P','O'], ['C','T','R','R'], ['G','B','Y','P'], ['O','C','T','R'], []],
+            [['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], []],
+            [['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M'], ['R','G','B'], ['Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], []],
+            [['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], ['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], []],
+            [['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], ['C','T','M','R'], ['G','B','Y','P'], ['O','C','T','M'], ['R','G','B','Y'], ['P','O','C','T'], ['M','R','G','B'], ['Y','P','O','C'], ['T','M','R','G'], ['B','Y','P','O'], []],
+            (function() {
+                const colors = ['R','G','B','Y','P','O','C','T'];
+                let counts = {}; colors.forEach(c => counts[c] = 10); counts['T'] = 9;
+                let pool = []; for (let c in counts) { for (let i = 0; i < counts[c]; i++) pool.push(c); }
+                function seededShuffle(arr, seed) {
+                    let m = arr.length; while (m) {
+                        seed = (seed * 9301 + 49297) % 233280;
+                        const i = Math.floor(seed / 233280 * m); m--;
+                        [arr[m], arr[i]] = [arr[i], arr[m]];
+                    } return arr;
+                }
+                seededShuffle(pool, 12345);
+                let bottles = []; let idx = 0;
+                for (let i = 0; i < 19; i++) { bottles.push(pool.slice(idx, idx+4)); idx += 4; }
+                bottles.push(pool.slice(idx, idx+3)); return bottles;
+            })(),
+            (function() {
+                const colors = ['R','G','B','Y','P','O','C','T'];
+                let counts = {}; colors.forEach(c => counts[c] = 10); counts['R'] = 9;
+                let pool = []; for (let c in counts) { for (let i = 0; i < counts[c]; i++) pool.push(c); }
+                function seededShuffle(arr, seed) {
+                    let m = arr.length; while (m) {
+                        seed = (seed * 9301 + 49297) % 233280;
+                        const i = Math.floor(seed / 233280 * m); m--;
+                        [arr[m], arr[i]] = [arr[i], arr[m]];
+                    } return arr;
+                }
+                seededShuffle(pool, 67890);
+                let bottles = []; let idx = 0;
+                for (let i = 0; i < 19; i++) { bottles.push(pool.slice(idx, idx+4)); idx += 4; }
+                bottles.push(pool.slice(idx, idx+3)); return bottles;
+            })(),
+            [['R','G','B','Y'], ['P','O','C','R'], ['G','B','Y','P'], ['O','C','R','G'], ['B','Y','P','O'], ['C','R','G','B'], ['Y','P','O','C'], []],
+            LEVEL23.bottles, LEVEL24.bottles, LEVEL25.bottles, LEVEL26.bottles, LEVEL27.bottles, LEVEL28,
+            LEVEL29, LEVEL30.bottles, LEVEL31.bottles, LEVEL32.bottles, LEVEL33
+        ];
+
+        // Таймеры для новых уровней
+        const timerMap = {
+            8: 90, 9: 90, 12: 70, 13: 60, 16: 80, 17: 75, 20: 90, 24: 90,
+            28: 80,  // 29-й уровень (индекс 28)
+            30: 70,  // 31-й уровень (индекс 30)
+            31: 80   // 32-й уровень (индекс 31)
+        };
+
+        const TUTORIAL_MOVES = [[0, 3], [2, 0], [1, 2]];
+        const totalLevels = LEVEL_DATA.length, gameBoard = document.getElementById('game-board');
+        const levelNum = document.getElementById('level-num'), modal = document.getElementById('win-modal');
+        const modalNextBtn = document.getElementById('modal-next-btn'), resetBtn = document.getElementById('reset-btn');
+        const timeoutModal = document.getElementById('timeout-modal');
+        const timeoutRetryBtn = document.getElementById('timeout-retry-btn');
+        const timeoutMenuBtn = document.getElementById('timeout-menu-btn');
+        const noMovesModal = document.getElementById('no-moves-modal');
+        const noMovesRetryBtn = document.getElementById('no-moves-retry-btn');
+        const noMovesMenuBtn = document.getElementById('no-moves-menu-btn');
+        const timerWarningModal = document.getElementById('timer-warning-modal');
+        const timerWarningStartBtn = document.getElementById('timer-warning-start-btn');
+        const timerWarningDigits = document.getElementById('timer-warning-digits');
+        const hiddenWarningModal = document.getElementById('hidden-warning-modal');
+        const hiddenWarningStartBtn = document.getElementById('hidden-warning-start-btn');
+        const timerDisplay = document.getElementById('timer-display');
+        const timerText = document.getElementById('timer-text');
+        const timerIcon = document.getElementById('timer-icon');
+        const frozenWarningModal = document.getElementById('frozen-warning-modal');
+        const frozenWarningStartBtn = document.getElementById('frozen-warning-start-btn');
+        const frozenDemoContainer = document.getElementById('frozen-demo-container');
+
+        // ========== ТАЙМЕР ==========
+        function stopTimer() {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            timerDisplay.style.display = 'none';
+            timerIcon.style.animationPlayState = 'paused';
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(Math.max(0, timerSeconds) / 60);
+            const secs = Math.floor(Math.max(0, timerSeconds) % 60);
+            timerText.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            if (timerSeconds <= 10) {
+                timerText.style.color = '#ff6666';
+                timerText.style.textShadow = '0 0 10px #ff0000';
+            } else if (timerSeconds <= 30) {
+                timerText.style.color = '#ffaa00';
+                timerText.style.textShadow = '0 0 8px #ffaa00';
+            } else {
+                timerText.style.color = '#fff';
+                timerText.style.textShadow = '0 0 8px #00d2ff';
+            }
+        }
+
+        function startTimer(seconds) {
+            stopTimer();
+            timerSeconds = seconds;
+            timerDisplay.style.display = 'inline-flex';
+            timerIcon.style.animationPlayState = 'running';
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerIcon.style.animationPlayState = 'paused';
+                    timeUp();
+                }
+            }, 1000);
+        }
+
+        function timeUp() {
+            isAnimating = true;
+            stopTimer();
+            timeoutModal.style.display = 'flex';
+        }
+
+        timeoutRetryBtn.addEventListener('click', () => {
+            timeoutModal.style.display = 'none';
+            isAnimating = false;
+            loadLevel(currentLevelIdx);
+        });
+
+        timeoutMenuBtn.addEventListener('click', () => {
+            timeoutModal.style.display = 'none';
+            isAnimating = false;
+            openMainMenu();
+        });

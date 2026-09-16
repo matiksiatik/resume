@@ -1,0 +1,729 @@
+<!-- Содержимое игрового контейнера, вставляется в #game-container -->
+<div id="header">
+    <button class="btn-control" onclick="openMainMenu()"><span data-lang="game_back">Меню</span></button>
+    <span style="font-weight: 800; text-shadow: 0 2px 0 #110b2b;"><span data-lang="game_level">Уровень</span> <span id="level-num">1</span></span>
+    <span id="timer-display" style="display:none;">
+        <svg id="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2h12v2a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V2z" />
+            <path d="M6 22h12v-2a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v2z" />
+            <path d="M12 12v-4" />
+            <path d="M12 16v4" />
+        </svg>
+        <span id="timer-text">1:30</span>
+    </span>
+    <button class="btn-control" id="reset-btn"><span data-lang="game_reset">⟳</span></button>
+</div>
+<div id="game-board"></div>
+
+<!-- Модальные окна игры -->
+<div id="win-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); display:none; justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="win-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="win_title">Уровень пройден!</h2>
+        <p data-lang="win_desc">Все жидкости успешно рассортированы!</p>
+        <button id="modal-next-btn" style="margin-top:20px; background:black; border-radius:16px; padding:2px; border:none; cursor:pointer; background-image:linear-gradient(to top, #8122b0, #dc98fd); box-shadow:0 0 15px rgba(185,49,252,0.3);">
+            <span style="display:block; padding:12px 30px; background:#B931FC; border-radius:14px; background-image:linear-gradient(to top, #a62ce2, #c045fc); color:white; font-weight:bold; font-size:1.1rem;" data-lang="win_next">Следующий уровень</span>
+        </button>
+    </div>
+</div>
+
+<div id="timeout-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="timeout-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="timeout_title">Время вышло!</h2>
+        <p data-lang="timeout_desc">Вы не успели отсортировать жидкости.</p>
+        <button id="timeout-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_retry">Повторить</span>
+        </button>
+        <button id="timeout-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timeout_menu">В меню</span>
+        </button>
+    </div>
+</div>
+
+<div id="no-moves-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="no-moves-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="no_moves_title">Нет ходов!</h2>
+        <p data-lang="no_moves_desc">Вы не можете сделать ни одного переливания.</p>
+        <button id="no-moves-retry-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_retry">Повторить</span>
+        </button>
+        <button id="no-moves-menu-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="no_moves_menu">В меню</span>
+        </button>
+    </div>
+</div>
+
+<div id="timer-warning-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="timer-warning-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="timer_warning_title">Уровень с таймером</h2>
+        <div class="timer-warning-digits" id="timer-warning-digits">10</div>
+        <p data-lang="timer_warning_desc" style="margin-bottom:10px; font-size:1rem; color:#ddd; line-height:1.5;">На этом уровне у вас есть ограниченное время. Успейте рассортировать все жидкости, иначе вы проиграете!</p>
+        <button id="timer-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="timer_warning_start">Начать</span>
+        </button>
+    </div>
+</div>
+
+<div id="hidden-warning-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="hidden-warning-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="hidden_warning_title">Скрытые слои</h2>
+        <div class="hidden-demo-scene">
+            <!-- Демо-сцена для скрытых слоёв (разметка аналогична исходной) -->
+            <div class="hidden-demo-bottle-wrapper hidden-demo-src" id="hiddenSrc">
+                <div class="hidden-demo-bottle">
+                    <div class="hidden-demo-bottle-body-container">
+                        <div class="hidden-demo-liquid-wrapper">
+                            <div class="hidden-demo-liquid" style="background-color: #e74c3c;"></div>
+                            <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                            <div class="hidden-demo-liquid question" style="bottom: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hidden-demo-bottle-wrapper hidden-demo-clone" id="hiddenClone">
+                <div class="hidden-demo-bottle">
+                    <div class="hidden-demo-bottle-body-container">
+                        <div class="hidden-demo-liquid-wrapper">
+                            <div class="hidden-demo-liquid" style="background-color: #e74c3c;"></div>
+                            <div class="hidden-demo-liquid question" style="bottom: 25%;"></div>
+                            <div class="hidden-demo-liquid question" style="bottom: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hidden-demo-bottle-wrapper hidden-demo-dst" id="hiddenDst">
+                <div class="hidden-demo-bottle">
+                    <div class="hidden-demo-bottle-body-container">
+                        <div class="hidden-demo-liquid-wrapper">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hidden-demo-arrow">➜</div>
+            <div class="hidden-demo-drop" id="hiddenDrop">
+                <div class="hidden-demo-drop-inner"></div>
+            </div>
+        </div>
+        <p data-lang="hidden_warning_desc" style="margin-bottom:10px; font-size:1rem; color:#ddd; line-height:1.5;">Нижние слои скрыты. Перелейте верхний слой, чтобы открыть следующий. Открытые слои остаются видимыми навсегда!</p>
+        <button id="hidden-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="hidden_warning_start">Начать</span>
+        </button>
+    </div>
+</div>
+
+<div id="frozen-warning-modal" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.8); justify-content:center; align-items:center; z-index:100; backdrop-filter:blur(4px);">
+    <div id="frozen-warning-content" style="padding:30px 25px; border-radius:30px; text-align:center; background:#1a0a3a; border:2px solid #8122b0; max-width:360px; width:90%;">
+        <h2 data-lang="frozen_warning_title">Замороженная бутылка</h2>
+        <div id="frozen-demo-container"></div>
+        <p data-lang="frozen_warning_desc" style="margin-bottom:15px; font-size:1rem; color:#ddd; line-height:1.5;">
+            Завершите любую обычную бутылку (заполните её одним цветом), чтобы разморозить замёрзшую. После разморозки вы сможете использовать её для сортировки.
+        </p>
+        <button id="frozen-warning-start-btn" class="menu-button" style="width: auto; margin: 10px auto; padding: 0;">
+            <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;" data-lang="frozen_warning_start">Начать</span>
+        </button>
+    </div>
+</div>
+
+<!-- Обучение -->
+<div id="tutorial-ui" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:50;">
+    <div id="tutorial-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(8,3,32,0.6); backdrop-filter:blur(2px); z-index:51; pointer-events:auto;"></div>
+    <div id="tutorial-label" style="position:absolute; bottom:35%; width:100%; text-align:center; z-index:55; pointer-events:none; opacity:0; transition:opacity 0.3s; color:#fff; font-size:1.5rem; font-weight:900; text-shadow:0 0 20px rgba(185,49,252,1),0 0 40px rgba(185,49,252,0.8),0 0 80px rgba(185,49,252,0.5),0 2px 0 #110b2b;">
+        <span id="tutorial-label-text">Нажмите на эту бутылку</span>
+    </div>
+    <div id="tutorial-popup" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:60; display:none; width:90%; max-width:360px;">
+        <div id="tutorial-popup-content" style="background:#1a0a3a; border:2px solid #8122b0; border-radius:30px; padding:30px 25px; text-align:center; box-shadow:0 0 40px rgba(185,49,252,0.4);">
+            <h2 data-lang="tutorial_popup_title">Как играть?</h2>
+            <div class="demo-scene" style="position:relative; width:160px; height:120px; margin:15px auto 25px auto; overflow:visible;">
+                <!-- Демо-сцена, аналогичная исходной -->
+                <div class="demo-bottle-wrapper demo-src" style="position:absolute; display:flex; justify-content:center; align-items:center; width:22px; height:50px; left:15px; bottom:0; animation:demoLift 3s ease-in-out infinite; z-index:2;">
+                    <div class="demo-bottle" style="width:100%; height:100%; position:relative; filter:drop-shadow(0 0 2px rgba(220,240,255,0.6)) drop-shadow(0 0 1px rgba(255,255,255,0.9));">
+                        <div class="demo-bottle-body-container" style="width:100%; height:100%; position:relative; clip-path:url(#bottle-clip); background:rgba(255,255,255,0.05); pointer-events:none;">
+                            <div class="demo-liquid-wrapper" style="position:absolute; bottom:0; left:0; width:100%; height:80%; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end;">
+                                <div class="demo-liquid" style="width:100%; height:25%; background-color:#e74c3c;"></div>
+                                <div class="demo-liquid" style="width:100%; height:25%; bottom:25%; background-color:#2ecc71;"></div>
+                                <div class="demo-liquid" style="width:100%; height:25%; bottom:50%; background-color:#3498db;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="demo-bottle-wrapper demo-clone" style="position:absolute; display:flex; justify-content:center; align-items:center; width:22px; height:50px; left:123px; bottom:55px; animation:demoClone 3s ease-in-out infinite; z-index:5;">
+                    <div class="demo-bottle">
+                        <div class="demo-bottle-body-container">
+                            <div class="demo-liquid-wrapper">
+                                <div class="demo-liquid" style="background-color:#e74c3c;"></div>
+                                <div class="demo-liquid" style="bottom:25%; background-color:#2ecc71;"></div>
+                                <div class="demo-liquid" style="bottom:50%; background-color:#3498db;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="demo-bottle-wrapper demo-dst" style="position:absolute; display:flex; justify-content:center; align-items:center; width:22px; height:50px; right:15px; bottom:0;">
+                    <div class="demo-bottle">
+                        <div class="demo-bottle-body-container">
+                            <div class="demo-liquid-wrapper">
+                                <div class="demo-liquid" style="background-color:#e74c3c;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="demo-arrow" style="position:absolute; left:70px; top:82px; font-size:26px; font-weight:900; color:#00d2ff; text-shadow:0 0 10px #00d2ff,0 0 20px #00d2ff,0 0 30px #00d2ff; animation:demoArrowPulse 1.2s ease-in-out infinite;">➜</div>
+            </div>
+            <p style="margin-bottom:20px; line-height:1.5; font-size:1rem; color:#ddd;" data-lang="tutorial_popup_desc">Нажмите на бутылку, чтобы выбрать её. Затем нажмите на пустую бутылку или на бутылку с таким же цветом сверху. Нельзя переливать в бутылку с другим цветом!</p>
+            <button id="tutorial-start-btn" class="menu-button" style="width: auto; margin: 0; padding: 0;">
+                <span class="menu-button-inner" style="padding: 10px 30px; font-size: 1.1rem;">
+                    <span data-lang="tutorial_popup_btn">Начать игру</span>
+                </span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SVG маски бутылок -->
+<svg style="width:0; height:0; position:absolute;">
+  <defs>
+    <clipPath id="bottle-clip" clipPathUnits="objectBoundingBox">
+      <path d="M 0.28 0.05 L 0.72 0.05 L 0.72 0.25 C 0.85 0.25, 1 0.42, 1 0.65 L 1 0.9 C 1 1, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 1, 0 0.9 L 0 0.65 C 0 0.42, 0.15 0.25, 0.28 0.25 Z" />
+    </clipPath>
+    <clipPath id="bottle-clip-big" clipPathUnits="objectBoundingBox">
+      <path d="M 0.28 0.02 L 0.72 0.02 L 0.72 0.06 C 0.85 0.06, 1 0.075, 1 0.12 L 1 0.95 C 1 0.985, 0.95 1, 0.85 1 L 0.15 1 C 0.05 1, 0 0.985, 0 0.95 L 0 0.12 C 0 0.075, 0.15 0.06, 0.28 0.06 Z" />
+    </clipPath>
+  </defs>
+</svg>
+
+<style>
+    /* ===== СТИЛИ ДЛЯ ИГРОВОГО ИНТЕРФЕЙСА ===== */
+    #game-container { 
+        display: none; flex-direction: column; width: 100%; height: 100%; 
+        z-index: 11; position: absolute; top: 0; left: 0;
+        background: rgba(8, 3, 32, 0.35); backdrop-filter: blur(4px);
+    }
+    #header { 
+        display: flex; justify-content: space-between; align-items: center; 
+        width: 100%; padding: 10px 15px; font-size: 1.2rem; font-weight: bold; 
+        box-sizing: border-box; 
+    }
+    #timer-display {
+        display: none;
+        font-size: 1.3rem;
+        font-weight: 900;
+        color: #fff;
+        background: rgba(0,0,0,0.6);
+        padding: 4px 12px;
+        border-radius: 20px;
+        margin: 0 8px;
+        text-shadow: 0 0 8px #00d2ff;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    #timer-icon {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        animation: timerTick 2s linear infinite;
+        animation-play-state: paused;
+    }
+    @keyframes timerTick {
+        0% { transform: rotate(0deg); }
+        50% { transform: rotate(180deg); }
+        100% { transform: rotate(180deg); }
+    }
+    
+    .btn-control {
+        background: black; border-radius: 16px; padding: 2px; border: none; cursor: pointer; transition: 0.1s, box-shadow 0.2s;
+        background-image: linear-gradient(to top, #8122b0, #dc98fd); display: flex; justify-content: center; align-items: center;
+        box-shadow: 0 0 15px rgba(185, 49, 252, 0.3);
+    }
+    .btn-control:active { transform: scale(0.92); }
+    .btn-control:hover { box-shadow: 0 0 25px rgba(185, 49, 252, 0.7); }
+    .btn-control span {
+        display: block; padding: 6px 16px; background: #B931FC; border-radius: 14px;
+        background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; font-weight: bold; font-size: 1.1rem;
+    }
+
+    #game-board { 
+        display: flex; 
+        flex-wrap: wrap; 
+        justify-content: center; 
+        gap: 15px; 
+        width: 100%; 
+        height: 65%; 
+        padding: 10px 0; 
+        align-content: center; 
+        transition: height 0.3s, padding 0.3s, gap 0.3s, max-width 0.3s;
+    }
+    /* Специальный стиль для уровня с большой бутылкой (33-й уровень, индекс 32) */
+    #game-board.big-bottle-level {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 10px;
+        align-items: start;
+        align-content: start;
+        justify-items: center;
+        height: 100%;
+        padding: 75px 10px 15px 10px;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+    #game-board.big-bottle-level .bottle-group {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        align-content: flex-start;
+        width: 100%;
+        height: 100%;
+    }
+    #game-board.big-bottle-level .bottle-group.small-bottles .bottle {
+        width: 48px;
+        height: 105px;
+    }
+    #game-board.big-bottle-level .center-group {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100%;
+    }
+    #game-board.big-bottle-level .bottle.big-bottle {
+        width: 60px;
+        height: min(480px, 62vh);
+        filter: drop-shadow(0 0 12px rgba(255,255,255,0.6));
+        z-index: 5;
+    }
+    #game-board.big-bottle-level .bottle.big-bottle .bottle-body-container {
+        clip-path: url(#bottle-clip-big);
+    }
+    #game-board.big-bottle-level .bottle.big-bottle .liquid-wrapper {
+        height: 92%;
+    }
+    #game-board.big-bottle-level .bottle.big-bottle .liquid {
+        height: 5%;
+    }
+    #game-board.big-bottle-level .bottle.big-bottle .bottle-body-container::before {
+        top: 4%;
+        height: 80%;
+    }
+
+    /* ===== БУТЫЛКИ (базовый размер) ===== */
+    .bottle { 
+        display: flex; justify-content: center; align-items: center; 
+        cursor: pointer; touch-action: manipulation; 
+        width: 60px; height: 130px; 
+        position: relative;
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease; 
+        filter: drop-shadow(0 0 3px rgba(220, 240, 255, 0.8)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)); 
+    }
+    .bottle.selected {
+        transform: translateY(-20px) scale(1.05);
+        filter: drop-shadow(0 20px 25px rgba(0,0,0,0.7)) drop-shadow(0 0 8px rgba(255,255,255,1)) drop-shadow(0 0 25px rgba(135,206,250,0.6));
+        z-index: 10;
+    }
+    .bottle.pouring {
+        transform: translateY(-70px) scale(1.15);
+        filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(135, 206, 250, 0.7));
+        z-index: 50;
+    }
+    .bottle.receiving { transform: scale(1.1) translateY(10px); }
+    .bottle.receiving .bottle-body-container { filter: drop-shadow(0 0 20px rgba(135, 206, 250, 0.8)); }
+    
+    .bottle-body-container { width: 100%; height: 100%; position: relative; clip-path: url(#bottle-clip); background: rgba(255, 255, 255, 0.05); pointer-events: none; }
+    .liquid-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; height: 80%; pointer-events: none; overflow: hidden; }
+    .liquid { position: absolute; width: 100%; height: 25%; bottom: 0; transition: opacity 0.2s; pointer-events: none; }
+
+    /* Скрытые слои */
+    .liquid.hidden {
+        background-color: #111 !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #aaa;
+    }
+    .liquid.hidden::after {
+        content: "?";
+    }
+
+    .bottle-body-container::before { content: ''; position: absolute; top: 15%; left: 6px; width: 20%; height: 60%; background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent); border-radius: 50px; filter: blur(2px); z-index: 10; pointer-events: none; }
+
+    @keyframes ripple {
+        0% { transform: scale(1) translateY(0); opacity: 1; }
+        50% { transform: scale(1.2) translateY(-5%); opacity: 0.9; }
+        100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .liquid.ripple {
+        animation: ripple 0.5s ease-out;
+    }
+
+    /* ===== СТИЛИ ДЛЯ МАЛЕНЬКИХ БУТЫЛОК (уровни 19–21, 27, 31, 32, 33) ===== */
+    #game-board.small-bottles {
+        gap: 8px;
+        padding-top: 20px;
+        height: 55%;
+        max-width: 390px;
+        margin: 0 auto;
+    }
+    #game-board.small-bottles .bottle {
+        width: 48px;
+        height: 105px;
+    }
+    #game-board.small-bottles .bottle.selected {
+        transform: translateY(-15px) scale(1.05);
+    }
+    #game-board.small-bottles .bottle.pouring {
+        transform: translateY(-50px) scale(1.15);
+    }
+    #game-board.small-bottles .bottle.receiving {
+        transform: scale(1.1) translateY(8px);
+    }
+    #game-board.small-bottles .bottle.locked-bottle {
+        width: 60px;
+        height: 130px;
+    }
+    #game-board.small-bottles .bottle.locked-bottle .bottle-inside {
+        width: 48px;
+        height: 105px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+    #game-board.small-bottles .bottle.locked-bottle .frost-text {
+        font-size: 1.5rem;
+    }
+    #game-board.small-bottles .bottle.locked-bottle .counter {
+        font-size: 0.8rem;
+        padding: 3px 8px;
+    }
+
+    /* ===== КРЫШКА ===== */
+    .cap {
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 26px;
+        height: 14px;
+        background: linear-gradient(180deg, #A0522D 0%, #6B3A1F 100%);
+        border-radius: 8px 8px 0 0;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.5);
+        z-index: 25;
+        pointer-events: none;
+        opacity: 0;
+    }
+    .cap.closing {
+        animation: capDrop 0.5s ease-out forwards;
+    }
+    .cap.capped {
+        top: -2px;
+        opacity: 1;
+        animation: none;
+    }
+    @keyframes capDrop {
+        0%   { opacity: 0; top: -30px; }
+        60%  { opacity: 1; top: -4px; }
+        100% { opacity: 1; top: -2px; }
+    }
+
+    /* ===== ЧАСТИЦЫ ===== */
+    .particle {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 200;
+        animation: particleFly 0.7s ease-out forwards;
+    }
+    @keyframes particleFly {
+        0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+    }
+
+    /* ===== ПОДСВЕТКА ===== */
+    .bottle.highlight-src { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(0, 210, 255, 1)) drop-shadow(0 0 30px rgba(0, 210, 255, 0.9)) !important; z-index: 50 !important; }
+    .bottle.highlight-dst { transform: scale(1.05) !important; filter: drop-shadow(0 0 15px rgba(255, 102, 178, 1)) drop-shadow(0 0 30px rgba(255, 102, 178, 0.9)) !important; z-index: 50 !important; }
+    .bottle.highlight-dst .bottle-body-container {
+        background: rgba(255, 102, 178, 0.25) !important;
+        box-shadow: inset 0 0 20px rgba(255, 102, 178, 0.9);
+    }
+
+    /* ===== КАПЛЯ ===== */
+    .liquid-stream { position: fixed; z-index: 999; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35)); }
+
+    /* ===== ОБУЧЕНИЕ ===== */
+    #tutorial-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; display: none; }
+    #tutorial-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8, 3, 32, 0.6); backdrop-filter: blur(2px); z-index: 51; pointer-events: auto; }
+    #tutorial-label { position: absolute; bottom: 35%; width: 100%; text-align: center; z-index: 55; pointer-events: none; opacity: 0; transition: opacity 0.3s; color: #fff; font-size: 1.5rem; font-weight: 900; text-shadow: 0 0 20px rgba(185, 49, 252, 1), 0 0 40px rgba(185, 49, 252, 0.8), 0 0 80px rgba(185, 49, 252, 0.5), 0 2px 0 #110b2b; }
+    #tutorial-popup { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 60; display: none; width: 90%; max-width: 360px; }
+    #tutorial-popup-content { background: #1a0a3a; border: 2px solid #8122b0; border-radius: 30px; padding: 30px 25px; text-align: center; box-shadow: 0 0 40px rgba(185, 49, 252, 0.4); }
+    #tutorial-popup-content h2 { font-size: 1.8rem; margin-bottom: 15px; color: #00d2ff; font-weight: 900; }
+    
+    .demo-scene { position: relative; width: 160px; height: 120px; margin: 15px auto 25px auto; overflow: visible; }
+    .demo-bottle-wrapper { position: absolute; display: flex; justify-content: center; align-items: center; width: 22px; height: 50px; }
+    .demo-bottle { width: 100%; height: 100%; position: relative; filter: drop-shadow(0 0 2px rgba(220, 240, 255, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.9)); }
+    .demo-bottle-body-container { width: 100%; height: 100%; position: relative; clip-path: url(#bottle-clip); background: rgba(255, 255, 255, 0.05); pointer-events: none; }
+    .demo-liquid-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; height: 80%; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+    .demo-liquid { width: 100%; height: 25%; }
+    .demo-bottle-body-container::before { content: ''; position: absolute; top: 15%; left: 3px; width: 20%; height: 60%; background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent); border-radius: 50px; filter: blur(1px); z-index: 10; pointer-events: none; }
+    .demo-src { left: 15px; bottom: 0; animation: demoLift 3s ease-in-out infinite; z-index: 2; }
+    .demo-dst { right: 15px; bottom: 0; }
+    .demo-clone { left: 123px; bottom: 55px; animation: demoClone 3s ease-in-out infinite; z-index: 5; }
+    .demo-arrow { position: absolute; left: 70px; top: 82px; font-size: 26px; font-weight: 900; color: #00d2ff; text-shadow: 0 0 10px #00d2ff,0 0 20px #00d2ff,0 0 30px #00d2ff; animation: demoArrowPulse 1.2s ease-in-out infinite; }
+    @keyframes demoLift { 0%,15% { transform:translateY(0); opacity:1; z-index:2; } 25% { transform:translateY(-30px); opacity:1; z-index:2; } 40% { transform:translateY(-30px); opacity:0; z-index:2; } 65% { transform:translateY(-30px); opacity:0; z-index:2; } 70% { transform:translateY(0); opacity:0; z-index:2; } 85%,100% { transform:translateY(0); opacity:1; z-index:2; } }
+    @keyframes demoClone { 0%,35% { opacity:0; transform:rotate(180deg) scale(0.8) translateY(-5px); } 45% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 70% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 75% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } 100% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } }
+    @keyframes demoArrowPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.2); } }
+
+    /* ===== ОКНА ПОБЕДЫ/ПРОИГРЫША ===== */
+    #win-modal, #timeout-modal, #no-moves-modal, #timer-warning-modal, #hidden-warning-modal, #frozen-warning-modal { 
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(8,3,32,0.8); display: none; justify-content: center; 
+        align-items: center; z-index: 100; backdrop-filter: blur(4px); 
+    }
+    #win-content, #timeout-content, #no-moves-content, #timer-warning-content, #hidden-warning-content, #frozen-warning-content { 
+        padding: 30px 25px; border-radius: 30px; text-align: center; 
+        background: #1a0a3a; border: 2px solid #8122b0; 
+        max-width: 360px; width: 90%;
+    }
+    #win-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+    #timeout-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #ff6666; font-weight: 900; }
+    #no-moves-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+    #timer-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+    #hidden-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+    #frozen-warning-content h2 { font-size: 1.8rem; margin-bottom: 10px; color: #00d2ff; font-weight: 900; }
+    
+    #win-content button, #timeout-content button, #no-moves-content button, #timer-warning-content button, #hidden-warning-content button, #frozen-warning-content button { 
+        margin-top: 20px; background: black; border-radius: 16px; padding: 2px; 
+        border: none; cursor: pointer; background-image: linear-gradient(to top, #8122b0, #dc98fd); 
+        box-shadow: 0 0 15px rgba(185, 49, 252, 0.3); 
+    }
+    #win-content button span, #timeout-content button span, #no-moves-content button span, #timer-warning-content button span, #hidden-warning-content button span, #frozen-warning-content button span { 
+        display: block; padding: 12px 30px; background: #B931FC; border-radius: 14px; 
+        background-image: linear-gradient(to top, #a62ce2, #c045fc); color: white; 
+        font-weight: bold; font-size: 1.1rem; 
+    }
+    #win-content button:active, #timeout-content button:active, #no-moves-content button:active, #timer-warning-content button:active, #hidden-warning-content button:active, #frozen-warning-content button:active { transform: scale(0.95); }
+    #no-moves-content .menu-button, #timeout-content .menu-button, #timer-warning-content .menu-button, #hidden-warning-content .menu-button, #frozen-warning-content .menu-button { width: auto; margin: 10px auto; padding: 0; }
+
+    /* ===== ЦИФРОВАЯ АНИМАЦИЯ ТАЙМЕРА В ПРЕДУПРЕЖДЕНИИ ===== */
+    .timer-warning-digits {
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: #ffaa00;
+        text-shadow: 0 0 20px rgba(255,170,0,0.5);
+        margin: 15px 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ===== СТИЛИ ДЛЯ ЗАМОРОЖЕННОЙ БУТЫЛКИ ===== */
+    .bottle.locked-bottle {
+        width: 90px;
+        height: 180px;
+    }
+    .locked-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 30;
+        background: transparent;
+        border-radius: 8px;
+        filter: drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8));
+        overflow: visible;
+    }
+    .bottle-inside {
+        position: absolute;
+        width: 66.7%;   /* 60px / 90px */
+        height: 72.2%;  /* 130px / 180px */
+        left: 16.7%;    /* 15px / 90px */
+        top: 8.3%;      /* 15px / 180px */
+        z-index: 1;
+        pointer-events: none;
+    }
+    .bottle-body {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        clip-path: url(#bottle-clip);
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .bottle-shine {
+        position: absolute;
+        top: 15%;
+        left: 6px;
+        width: 20%;
+        height: 60%;
+        background: linear-gradient(90deg, rgba(255,255,255,0.4), transparent);
+        border-radius: 50px;
+        filter: blur(2px);
+        z-index: 3;
+        pointer-events: none;
+    }
+    .ice-cube {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .locked-overlay .frost-text {
+        position: absolute;
+        top: 38%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        font-size: 2.5rem;
+        color: #ffffff;
+        text-shadow: 0 0 20px #88ddff, 0 0 40px #00aaff;
+        font-weight: bold;
+        pointer-events: none;
+        animation: pulseGlow 2s ease-in-out infinite;
+        transition: opacity 0.5s ease;
+    }
+    @keyframes pulseGlow {
+        0% { text-shadow: 0 0 10px #88ddff; }
+        50% { text-shadow: 0 0 30px #88ddff, 0 0 60px #00aaff; }
+        100% { text-shadow: 0 0 10px #88ddff; }
+    }
+    .locked-overlay .counter {
+        position: absolute;
+        bottom: 25%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 14px;
+        border-radius: 16px;
+        backdrop-filter: blur(2px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+    }
+    .locked-overlay .frost-text.fade-out,
+    .locked-overlay .counter.fade-out {
+        opacity: 0 !important;
+        animation: none !important;
+    }
+
+    /* ===== АНИМАЦИЯ РАЗРУШЕНИЯ ЛЕДЯНОГО БЛОКА ===== */
+    .ice-fragment { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; will-change: transform, opacity; }
+    .ice-fragment svg { width: 100%; height: 100%; }
+    .ice-particle { position: absolute; border-radius: 50%; background: radial-gradient(circle, #ffffff, #aaddff); pointer-events: none; z-index: 25; will-change: transform, opacity; }
+    .icicle { position: absolute; pointer-events: none; z-index: 22; will-change: transform, opacity; }
+    .icicle svg { width: 100%; height: 100%; }
+    @keyframes fragmentFly1 { 0% { transform:translate(0,0) rotate(0deg); opacity:1; } 100% { transform:translate(-80px,-120px) rotate(-30deg); opacity:0; } }
+    @keyframes fragmentFly2 { 0% { transform:translate(0,0) rotate(0deg); opacity:1; } 100% { transform:translate(80px,-120px) rotate(30deg); opacity:0; } }
+    @keyframes fragmentFly3 { 0% { transform:translate(0,0) rotate(0deg); opacity:1; } 100% { transform:translate(-60px,100px) rotate(-45deg); opacity:0; } }
+    @keyframes fragmentFly4 { 0% { transform:translate(0,0) rotate(0deg); opacity:1; } 100% { transform:translate(60px,100px) rotate(45deg); opacity:0; } }
+    @keyframes icicleFall1 { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(80px) rotate(10deg); opacity:0; } }
+    @keyframes icicleFall2 { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(90px) rotate(-15deg); opacity:0; } }
+    @keyframes icicleFall3 { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(70px) rotate(5deg); opacity:0; } }
+    @keyframes icicleFall4 { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(100px) rotate(-8deg); opacity:0; } }
+    @keyframes icicleFall5 { 0% { transform:translateY(0) rotate(0deg); opacity:1; } 100% { transform:translateY(85px) rotate(12deg); opacity:0; } }
+
+    /* ===== ДЕМО-КОНТЕЙНЕР ДЛЯ ЗАМОРОЖЕННОЙ БУТЫЛКИ ===== */
+    #frozen-demo-container {
+        position: relative;
+        width: 90px;
+        height: 180px;
+        margin: 15px auto;
+        transform: none;
+        transform-origin: center center;
+    }
+    #frozen-demo-container .bottle-inside {
+        width: 66.7%;
+        height: 72.2%;
+        left: 16.7%;
+        top: 8.3%;
+    }
+    #frozen-demo-container .locked-overlay {
+        filter: drop-shadow(0 15px 25px rgba(0, 40, 80, 0.8));
+    }
+    #frozen-demo-container .frost-text {
+        font-size: 2.2rem;
+    }
+    #frozen-demo-container .counter {
+        font-size: 0.9rem;
+        padding: 4px 10px;
+    }
+
+    /* ===== СТИЛИ ДЛЯ СКРЫТЫХ СЛОЁВ (демо) ===== */
+    .hidden-demo-scene { position:relative; width:160px; height:120px; margin:15px auto 25px auto; overflow:visible; }
+    .hidden-demo-bottle-wrapper { position:absolute; display:flex; justify-content:center; align-items:center; width:22px; height:50px; }
+    .hidden-demo-src { left:15px; bottom:0; z-index:2; }
+    .hidden-demo-dst { right:15px; bottom:0; }
+    .hidden-demo-clone { left:123px; bottom:55px; z-index:5; }
+    .hidden-demo-bottle { width:100%; height:100%; position:relative; filter:drop-shadow(0 0 2px rgba(220,240,255,0.6)) drop-shadow(0 0 1px rgba(255,255,255,0.9)); }
+    .hidden-demo-bottle-body-container { width:100%; height:100%; position:relative; clip-path:url(#bottle-clip); background:rgba(255,255,255,0.05); pointer-events:none; }
+    .hidden-demo-liquid-wrapper { position:absolute; bottom:0; left:0; width:100%; height:80%; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; }
+    .hidden-demo-liquid { width:100%; height:25%; }
+    .hidden-demo-liquid.question { background-color:#111 !important; display:flex; justify-content:center; align-items:center; font-size:0.8rem; font-weight:bold; color:#aaa; }
+    .hidden-demo-liquid.question::after { content:"?"; }
+    .hidden-demo-arrow { position:absolute; left:70px; top:82px; font-size:26px; font-weight:900; color:#00d2ff; text-shadow:0 0 10px #00d2ff,0 0 20px #00d2ff,0 0 30px #00d2ff; animation:demoArrowPulse 1.2s ease-in-out infinite; }
+    .hidden-demo-drop { position:absolute; width:18px; height:18px; left:125px; top:40px; z-index:6; }
+    .hidden-demo-drop-inner { width:100%; height:100%; background-color:#e74c3c; border-radius:100% 0% 100% 100%; transform:rotate(-45deg); position:relative; }
+    .hidden-demo-drop-inner::after { content:''; position:absolute; top:30%; left:20%; width:25%; height:35%; background:white; border-radius:50%; opacity:0.7; filter:blur(1px); transform:rotate(-30deg); }
+    .hidden-demo-src.lift { animation:demoLift 3s ease-in-out infinite; }
+    .hidden-demo-src.lower { animation:demoLower 3s ease-in-out infinite; }
+    .hidden-demo-clone.show { animation:demoCloneShow 3s ease-in-out infinite; }
+    .hidden-demo-clone.hide { animation:demoCloneHide 3s ease-in-out infinite; }
+    @keyframes demoLift { 0%,15% { transform:translateY(0); opacity:1; } 25% { transform:translateY(-30px); opacity:1; } 40% { transform:translateY(-30px); opacity:0; } 65% { transform:translateY(-30px); opacity:0; } 70% { transform:translateY(0); opacity:0; } 85%,100% { transform:translateY(0); opacity:1; } }
+    @keyframes demoLower { 0%,15% { transform:translateY(0); opacity:1; } 25% { transform:translateY(-30px); opacity:1; } 40% { transform:translateY(-30px); opacity:0; } 65% { transform:translateY(-30px); opacity:0; } 70% { transform:translateY(0); opacity:0; } 85%,100% { transform:translateY(0); opacity:1; } }
+    @keyframes demoCloneShow { 0%,35% { opacity:0; transform:rotate(180deg) scale(0.8) translateY(-5px); } 45% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 70% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 75% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } 100% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } }
+    @keyframes demoCloneHide { 0%,35% { opacity:0; transform:rotate(180deg) scale(0.8) translateY(-5px); } 45% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 70% { opacity:1; transform:rotate(180deg) scale(1) translateY(5px); } 75% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } 100% { opacity:0; transform:rotate(180deg) scale(1) translateY(5px); } }
+
+    @media (max-width: 450px) {
+        .bottle { width: 50px; height: 110px; }
+        #game-board { gap: 10px; height: 60%; }
+        #tutorial-label { bottom: 30%; font-size: 1.2rem; }
+        #timer-display { font-size: 1rem; padding: 2px 8px; }
+        .timer-warning-digits { font-size: 2.8rem; }
+        #game-board.small-bottles {
+            max-width: 340px;
+            gap: 8px;
+            height: 50%;
+            padding-top: 15px;
+        }
+        #game-board.small-bottles .bottle {
+            width: 42px;
+            height: 92px;
+        }
+        #game-board.big-bottle-level .bottle.big-bottle {
+            width: 50px;
+            height: min(420px, 58vh);
+        }
+        #game-board.big-bottle-level {
+            padding: 65px 10px 15px 10px;
+        }
+    }
+    @media (max-width: 360px) {
+        .bottle { width: 40px; height: 90px; }
+        #game-board { gap: 8px; }
+        .level-btn { width: 50px; height: 50px; }
+        .menu-button-inner { font-size: 1rem; padding: 12px 15px; }
+        #tutorial-label { bottom: 25%; font-size: 1rem; }
+        .timer-warning-digits { font-size: 2.2rem; }
+        #game-board.small-bottles {
+            max-width: 295px;
+            gap: 6px;
+            height: 45%;
+            padding-top: 10px;
+        }
+        #game-board.small-bottles .bottle {
+            width: 37px;
+            height: 80px;
+        }
+        #game-board.big-bottle-level .bottle.big-bottle {
+            width: 42px;
+            height: min(360px, 54vh);
+        }
+        #game-board.big-bottle-level {
+            padding: 55px 10px 10px 10px;
+        }
+    }
+</style>
